@@ -1,0 +1,11 @@
+review_id,review_text,date,rating,product
+R001,"The setup was quick and the interface is easy to understand.",2026-01-05,5,Mobile App
+R002,"The latest update made the app slower on my phone.",2026-01-08,2,Mobile App
+R003,"Customer support answered my question within an hour.",2026-01-12,5,Support
+R004,"The subscription price feels too high for the available features.",2026-01-15,2,Premium Plan
+R005,"It works as expected, but I would like better filtering options.",2026-01-19,3,Web App
+R006,"My order arrived earlier than expected and was packaged well.",2026-01-23,5,Delivery
+R007,"I was charged twice and the refund process was confusing.",2026-01-27,1,Billing
+R008,"Performance improved after the recent patch.",2026-02-02,4,Desktop App
+R009,"The instructions were clear, although installation took a while.",2026-02-06,3,Desktop App
+R010,"The product quality is excellent and I would recommend it.",2026-02-10,5,Core Product

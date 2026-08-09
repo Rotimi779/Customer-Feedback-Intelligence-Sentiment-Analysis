@@ -1,0 +1,81 @@
+"""Public API for CSV ingestion and canonical dataset preparation."""
+
+from src.ingestion.cleaning import (
+    build_canonical_dataframe,
+    normalize_column_name,
+    normalize_column_names,
+    normalize_review_text,
+)
+from src.ingestion.column_detector import (
+    TextColumnCandidate,
+    detect_metadata_columns,
+    detect_text_column,
+    rank_text_columns,
+    score_text_column,
+)
+from src.ingestion.loader import (
+    CSVEncodingError,
+    CSVLoadError,
+    CSVParseError,
+    EmptyCSVError,
+    FileSizeLimitError,
+    LoadedCSV,
+    RowLimitError,
+    UnsupportedFileTypeError,
+    load_csv,
+)
+from src.ingestion.schema import (
+    DEFAULT_INGESTION_CONFIG,
+    OPTIONAL_CANONICAL_COLUMNS,
+    REQUIRED_CANONICAL_COLUMNS,
+    CanonicalizationResult,
+    ColumnMapping,
+    IngestionConfig,
+    IngestionStatistics,
+    ValidationMessage,
+    ValidationReport,
+    ValidationSeverity,
+)
+from src.ingestion.validator import (
+    DatasetValidationError,
+    validate_column_mapping,
+    validate_dataframe,
+    validate_dataset,
+    validate_text_column,
+)
+
+__all__ = [
+    "CSVEncodingError",
+    "CSVLoadError",
+    "CSVParseError",
+    "CanonicalizationResult",
+    "ColumnMapping",
+    "DEFAULT_INGESTION_CONFIG",
+    "DatasetValidationError",
+    "EmptyCSVError",
+    "FileSizeLimitError",
+    "IngestionConfig",
+    "IngestionStatistics",
+    "LoadedCSV",
+    "OPTIONAL_CANONICAL_COLUMNS",
+    "REQUIRED_CANONICAL_COLUMNS",
+    "RowLimitError",
+    "TextColumnCandidate",
+    "UnsupportedFileTypeError",
+    "ValidationMessage",
+    "ValidationReport",
+    "ValidationSeverity",
+    "build_canonical_dataframe",
+    "detect_metadata_columns",
+    "detect_text_column",
+    "load_csv",
+    "normalize_column_name",
+    "normalize_column_names",
+    "normalize_review_text",
+    "rank_text_columns",
+    "score_text_column",
+    "validate_column_mapping",
+    "validate_dataframe",
+    "validate_dataset",
+    "validate_text_column",
+]
