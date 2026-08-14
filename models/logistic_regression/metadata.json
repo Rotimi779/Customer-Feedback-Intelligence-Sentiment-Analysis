@@ -1,0 +1,34 @@
+{
+  "class_distribution": {
+    "Negative": 324,
+    "Neutral": 142,
+    "Positive": 4446
+  },
+  "dataset_fingerprint": "d7107a02ef7baa0ded22a0541ebf3a3d1a32def209c1b11ad4d8c67bf39642b6",
+  "dataset_name": "amazon_reviews",
+  "labels": [
+    "Negative",
+    "Neutral",
+    "Positive"
+  ],
+  "model_name": "tfidf_logistic_regression",
+  "split_config": {
+    "random_state": 42,
+    "test_size": 0.15,
+    "train_size": 0.7,
+    "validation_size": 0.15
+  },
+  "test_rows": 737,
+  "train_rows": 3438,
+  "training_config": {
+    "class_weight": "balanced",
+    "max_features": 20000,
+    "max_iterations": 1000,
+    "ngram_max": 2,
+    "ngram_min": 1,
+    "random_state": 42,
+    "regularization_c": 1.0
+  },
+  "validation_macro_f1": 0.5944230646181151,
+  "validation_rows": 737
+}

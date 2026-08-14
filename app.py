@@ -47,6 +47,10 @@ def initialize_session_state() -> None:
         "column_mapping": None,
         "analysis_complete": False,
         "results_df": None,
+        "sentiment_complete": False,
+        "selected_sentiment_model": None,
+        "sentiment_runtime_seconds": None,
+        "sentiment_source_signature": None,
         "topic_summary": None,
         "aspect_summary": None,
         "insights": None,
@@ -69,6 +73,10 @@ def reset_dataset_state(source_signature: str) -> None:
     st.session_state["column_mapping"] = None
     st.session_state["analysis_complete"] = False
     st.session_state["results_df"] = None
+    st.session_state["sentiment_complete"] = False
+    st.session_state["selected_sentiment_model"] = None
+    st.session_state["sentiment_runtime_seconds"] = None
+    st.session_state["sentiment_source_signature"] = None
     st.session_state["topic_summary"] = None
     st.session_state["aspect_summary"] = None
     st.session_state["insights"] = None
@@ -105,7 +113,7 @@ def render_sidebar() -> None:
             icon="🗂️",
         )
         st.divider()
-        st.caption("Phase 3: exploratory data analysis")
+        st.caption("Phase 4: sentiment analysis")
 
 
 def render_validation_report(report: ValidationReport) -> None:
@@ -402,6 +410,11 @@ def main() -> None:
                 "duplicate_reviews_removed": result.statistics.duplicate_reviews_removed,
             }
             st.session_state["analysis_complete"] = False
+            st.session_state["results_df"] = None
+            st.session_state["sentiment_complete"] = False
+            st.session_state["selected_sentiment_model"] = None
+            st.session_state["sentiment_runtime_seconds"] = None
+            st.session_state["sentiment_source_signature"] = None
             logger.info(
                 "Canonicalization completed input_rows=%s output_rows=%s "
                 "empty_removed=%s duplicates_removed=%s",

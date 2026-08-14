@@ -1,4 +1,4 @@
-"""Application pipeline contracts and completed ingestion orchestration."""
+"""Application pipeline contracts and completed stage orchestration."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from src.ingestion.schema import (
     IngestionConfig,
 )
 from src.ingestion.validator import DatasetValidationError, validate_dataset
+from src.sentiment import SentimentAnalyzer, SentimentInferenceResult, SentimentModelName
 
 
 def prepare_dataset(
@@ -27,13 +28,28 @@ def prepare_dataset(
     return build_canonical_dataframe(dataframe, mapping)
 
 
-def run_pipeline(dataframe: pd.DataFrame) -> pd.DataFrame:
-    """Run the complete analysis pipeline once later phases are implemented.
+def run_sentiment_stage(
+    canonical_df: pd.DataFrame,
+    model_name: SentimentModelName | str,
+    *,
+    analyzer: SentimentAnalyzer | None = None,
+) -> SentimentInferenceResult:
+    """Run the completed sentiment stage against an existing canonical DataFrame."""
+    selected = SentimentModelName(model_name)
+    active_analyzer = analyzer or SentimentAnalyzer.load(selected)
+    if active_analyzer.model_name is not selected:
+        raise ValueError("Provided analyzer does not match the requested sentiment model.")
+    return active_analyzer.predict_dataframe(canonical_df)
 
-    The ingestion stage is available through :func:`prepare_dataset`, and EDA
-    is exposed through the independent ``src.eda`` utilities. Sentiment, topics,
-    aspects, and insights remain intentionally deferred.
+
+def run_pipeline(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Run the future complete analysis pipeline.
+
+    Ingestion, model-free EDA, and sentiment inference are implemented. Topic
+    modeling, aspect analysis, and insight generation remain intentionally
+    deferred to their assigned phases.
     """
     raise NotImplementedError(
-        "Only data ingestion is implemented. Later analysis phases are pending."
+        "The end-to-end pipeline is not complete yet. Sentiment is available "
+        "through run_sentiment_stage; later NLP phases remain pending."
     )
