@@ -7,6 +7,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
+SENTIMENT_COLORS = {
+    "Positive": "#2E8B57",
+    "Neutral": "#7A7A7A",
+    "Negative": "#D9534F",
+}
+
+
 def build_topic_frequency_chart(summary: pd.DataFrame) -> go.Figure:
     """Build a ranked bar chart of review count by topic."""
     ordered = summary.sort_values("review_count", ascending=True)
@@ -44,6 +51,10 @@ def build_topic_sentiment_chart(dataframe: pd.DataFrame) -> go.Figure | None:
         x="topic_label",
         y="reviews",
         color="sentiment_label",
+        color_discrete_map=SENTIMENT_COLORS,
+        category_orders={
+            "sentiment_label": ["Positive", "Neutral", "Negative"]
+        },
         barmode="stack",
         title="Sentiment within topics",
         labels={

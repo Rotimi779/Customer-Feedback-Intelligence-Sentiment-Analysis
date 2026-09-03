@@ -238,6 +238,11 @@ def main() -> None:
             st.session_state["topic_representatives"] = result.representative_review_ids
             # Topic changes invalidate downstream aspect/insight outputs.
             st.session_state["aspect_summary"] = None
+            st.session_state["aspect_mentions"] = None
+            st.session_state["aspect_metrics"] = None
+            st.session_state["aspect_complete"] = False
+            st.session_state["aspect_source_signature"] = None
+            st.session_state["aspect_runtime_seconds"] = None
             st.session_state["insights"] = None
 
     summary = st.session_state.get("topic_summary")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from src.aspects import AspectAnalysisResult, analyze_aspects
 from src.ingestion.cleaning import build_canonical_dataframe
 from src.ingestion.schema import (
     DEFAULT_INGESTION_CONFIG,
@@ -77,13 +78,34 @@ def run_topic_stage(
     return result
 
 
+def run_aspect_stage(topic_df: pd.DataFrame) -> AspectAnalysisResult:
+    """Extract rule-based aspects from Phase 5 topic-enriched review results."""
+    required = {
+        "review_id",
+        "review_text",
+        "clean_text",
+        "sentiment_label",
+        "sentiment_score",
+        "topic_id",
+        "topic_label",
+    }
+    missing = sorted(required.difference(topic_df.columns))
+    if missing:
+        raise ValueError(
+            "Aspect analysis requires Phase 5 topic-enriched sentiment data. Missing: "
+            + ", ".join(missing)
+        )
+    return analyze_aspects(topic_df)
+
+
 def run_pipeline(dataframe: pd.DataFrame) -> pd.DataFrame:
     """Run the future complete analysis pipeline.
 
-    Ingestion, EDA, sentiment analysis, and topic modeling are implemented.
-    Aspect analysis and insight generation remain deferred to later phases.
+    Ingestion, EDA, sentiment analysis, topic modeling, and aspect analysis are
+    implemented. Business-insight generation remains deferred to Phase 7.
     """
     raise NotImplementedError(
-        "The end-to-end pipeline is not complete yet. Sentiment and topic modeling "
-        "are available through their stage functions; later phases remain pending."
+        "The end-to-end pipeline is not complete yet. Sentiment, topic modeling, "
+        "and aspect analysis are available through stage functions; business "
+        "insights remain pending."
     )

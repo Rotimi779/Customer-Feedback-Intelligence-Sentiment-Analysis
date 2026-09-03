@@ -2,7 +2,8 @@
 
 A portfolio-focused NLP application that converts customer-feedback CSV files
 into a standardized analysis dataset, explores it through EDA, and enriches each
-review with sentiment predictions before later topic, aspect, and insight phases.
+review with sentiment, topic, and rule-based aspect outputs before the later
+business-insights and final dashboard phases.
 
 ## Current status
 
@@ -12,16 +13,13 @@ The cumulative codebase now includes:
 2. Data Ingestion and Validation
 3. Exploratory Data Analysis
 4. Sentiment Analysis
+5. Topic Modeling
+6. Aspect Analysis
 
-Phases 1-3 remain unchanged in behavior. Phase 4 adds the model-aware text
-preprocessing, TF-IDF + Logistic Regression baseline, DistilBERT fine-tuning and
-inference code, common evaluation metrics, model comparison, production-model
-selection metadata, sentiment dashboard, and tests.
-
-**Important:** the repository intentionally does not ship invented model
-metrics or a model trained on synthetic reviews. Phase 4 becomes fully complete
-on your machine after both models are trained/evaluated on the labelled public
-datasets required by `docs/EXPERIMENTS.md` and a production model is selected.
+Phase 6 adds a transparent rule-based aspect extractor, synonym/phrase mapping,
+review-sentiment association, aspect aggregation, visualizations, Streamlit
+exploration, and tests. The MVP intentionally reuses review-level sentiment for
+each detected aspect; it does not claim clause-level aspect sentiment.
 
 ## Application workflow
 
@@ -32,8 +30,10 @@ datasets required by `docs/EXPERIMENTS.md` and a production model is selected.
 5. Open **Overview** for model-free EDA and filtering.
 6. After local sentiment artifacts exist, open **Sentiment**.
 7. Select a trained model and run sentiment inference.
-8. Inspect distribution, confidence, optional time trend, representative reviews,
-   and the enriched output.
+8. Open **Topics**, choose a topic count, and run NMF topic modeling.
+9. Open **Aspect Analysis** and run the rule-based aspect stage.
+10. Inspect aspect frequency, sentiment, optional rating rankings, associated topics,
+    and supporting reviews.
 
 Uploaded customer files are processed in memory. Do not upload confidential or
 sensitive personal data to this portfolio application.
@@ -90,7 +90,18 @@ Phase 4 appends:
 - `sentiment_label` — `Negative`, `Neutral`, or `Positive`
 - `sentiment_score` — confidence for the predicted class
 
-The sentiment stage returns a copy and does not mutate the canonical DataFrame.
+Phase 5 appends:
+
+- `topic_id`
+- `topic_label`
+
+Phase 6 appends:
+
+- `detected_aspects` — zero or more canonical aspect names
+- `aspect_sentiment` — aspect-to-review-sentiment mapping
+- `aspect_confidence` — optional aspect-to-review-confidence mapping
+
+Each stage returns a copy rather than mutating its input DataFrame.
 
 ## Phase 4 training data
 
@@ -342,3 +353,33 @@ topic_id + topic_label
         v
 Topic summaries / visualizations
 ```
+
+# Phase 6 — Aspect Analysis
+
+Phase 6 uses a deterministic rule-based extractor built from canonical aspect
+names, keywords, synonyms, and simple phrases. A review may match multiple
+aspects. The extractor is modular: a different vocabulary can be injected for a
+domain without replacing the matching algorithm.
+
+The Streamlit workflow consumes Phase 5 topic-enriched sentiment results and
+keeps `topic_id` / `topic_label` attached to every review so aspect evidence can
+be inspected in its broader topic context.
+
+The MVP reuses the existing review-level `sentiment_label` and
+`sentiment_score` for every detected aspect. This known limitation is surfaced
+in the UI and evaluation notes rather than being presented as a separate trained
+aspect-sentiment model.
+
+Aspect aggregation provides:
+
+- mention frequency and unique-review coverage
+- average/dominant sentiment
+- positive, neutral, and negative counts/shares
+- average confidence when available
+- average rating when rating metadata exists
+- supporting reviews and associated topic context
+
+Automated evaluation reports structural coverage and sentiment-association
+completeness. Correct extraction, label relevance, and business usefulness still
+require manual inspection because the MVP does not include a gold aspect-labelled
+dataset.

@@ -59,6 +59,11 @@ def initialize_session_state() -> None:
         "topic_model_runtime": None,
         "topic_representatives": None,
         "aspect_summary": None,
+        "aspect_mentions": None,
+        "aspect_metrics": None,
+        "aspect_complete": False,
+        "aspect_source_signature": None,
+        "aspect_runtime_seconds": None,
         "insights": None,
         "source_signature": None,
         "ingestion_statistics": None,
@@ -91,6 +96,11 @@ def reset_dataset_state(source_signature: str) -> None:
     st.session_state["topic_model_runtime"] = None
     st.session_state["topic_representatives"] = None
     st.session_state["aspect_summary"] = None
+    st.session_state["aspect_mentions"] = None
+    st.session_state["aspect_metrics"] = None
+    st.session_state["aspect_complete"] = False
+    st.session_state["aspect_source_signature"] = None
+    st.session_state["aspect_runtime_seconds"] = None
     st.session_state["insights"] = None
     st.session_state["ingestion_statistics"] = None
 
@@ -125,7 +135,7 @@ def render_sidebar() -> None:
             icon="🗂️",
         )
         st.divider()
-        st.caption("Phase 5: topic modeling")
+        st.caption("Phase 6: aspect analysis")
 
 
 def render_validation_report(report: ValidationReport) -> None:

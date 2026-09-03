@@ -96,3 +96,67 @@ def topic_sentiment_df() -> pd.DataFrame:
                 )
                 review_index += 1
     return pd.DataFrame(rows)
+
+
+@pytest.fixture
+def aspect_topic_df() -> pd.DataFrame:
+    """Phase 5-style results with explicit aspect vocabulary evidence."""
+    return pd.DataFrame(
+        [
+            {
+                "review_id": "r1",
+                "review_text": "The battery life is excellent and charging is very fast.",
+                "clean_text": "The battery life is excellent and charging is very fast.",
+                "sentiment_label": "Positive",
+                "sentiment_score": 0.96,
+                "topic_id": 0,
+                "topic_label": "Battery / Charge",
+                "rating": 5,
+                "product": "Demo",
+            },
+            {
+                "review_id": "r2",
+                "review_text": "Delivery was late and the package arrived crushed.",
+                "clean_text": "Delivery was late and the package arrived crushed.",
+                "sentiment_label": "Negative",
+                "sentiment_score": 0.94,
+                "topic_id": 1,
+                "topic_label": "Shipping / Delivery",
+                "rating": 1,
+                "product": "Demo",
+            },
+            {
+                "review_id": "r3",
+                "review_text": "Customer support fixed the issue, but the interface is confusing.",
+                "clean_text": "Customer support fixed the issue, but the interface is confusing.",
+                "sentiment_label": "Neutral",
+                "sentiment_score": 0.73,
+                "topic_id": 2,
+                "topic_label": "Support / Interface",
+                "rating": 3,
+                "product": "Demo",
+            },
+            {
+                "review_id": "r4",
+                "review_text": "The price is too expensive for this build quality.",
+                "clean_text": "The price is too expensive for this build quality.",
+                "sentiment_label": "Negative",
+                "sentiment_score": 0.91,
+                "topic_id": 3,
+                "topic_label": "Price / Quality",
+                "rating": 2,
+                "product": "Demo",
+            },
+            {
+                "review_id": "r5",
+                "review_text": "I received the item yesterday and have no specific comments.",
+                "clean_text": "I received the item yesterday and have no specific comments.",
+                "sentiment_label": "Neutral",
+                "sentiment_score": 0.65,
+                "topic_id": 4,
+                "topic_label": "General Feedback",
+                "rating": 3,
+                "product": "Demo",
+            },
+        ]
+    )

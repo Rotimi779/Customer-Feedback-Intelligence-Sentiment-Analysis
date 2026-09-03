@@ -27,6 +27,13 @@ def _load_analyzer(model_name: str) -> SentimentAnalyzer:
     return SentimentAnalyzer.load(SentimentModelName(model_name))
 
 
+SENTIMENT_COLORS = {
+    "Positive": "#2E8B57",
+    "Neutral": "#7A7A7A",
+    "Negative": "#D9534F",
+}
+
+
 def _render_model_comparison() -> None:
     """Display saved model metrics when training/evaluation has been completed."""
     comparison = load_saved_model_comparison()
@@ -122,6 +129,9 @@ def _render_distribution(dataframe: pd.DataFrame) -> None:
         counts,
         x="sentiment",
         y="reviews",
+        color="sentiment",
+        color_discrete_map=SENTIMENT_COLORS,
+        category_orders={"sentiment": ["Positive", "Neutral", "Negative"]},
         title="Sentiment distribution",
         labels={"sentiment": "Sentiment", "reviews": "Reviews"},
     )
@@ -158,6 +168,10 @@ def _render_sentiment_trend(dataframe: pd.DataFrame) -> None:
         x="period",
         y="reviews",
         color="sentiment_label",
+        color_discrete_map=SENTIMENT_COLORS,
+        category_orders={
+            "sentiment_label": ["Positive", "Neutral", "Negative"]
+        },
         markers=True,
         title="Sentiment over time",
         labels={
@@ -328,6 +342,13 @@ def main() -> None:
             st.session_state["topic_config"] = None
             st.session_state["topic_model_runtime"] = None
             st.session_state["topic_representatives"] = None
+            st.session_state["aspect_summary"] = None
+            st.session_state["aspect_mentions"] = None
+            st.session_state["aspect_metrics"] = None
+            st.session_state["aspect_complete"] = False
+            st.session_state["aspect_source_signature"] = None
+            st.session_state["aspect_runtime_seconds"] = None
+            st.session_state["insights"] = None
 
     results_df = st.session_state.get("results_df")
     stored_model = st.session_state.get("selected_sentiment_model")
