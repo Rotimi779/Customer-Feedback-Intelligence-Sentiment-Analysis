@@ -13,6 +13,9 @@ from src.ingestion.schema import (
 )
 from src.ingestion.validator import DatasetValidationError, validate_dataset
 from src.sentiment import SentimentAnalyzer, SentimentInferenceResult, SentimentModelName
+from src.topics.evaluation import evaluate_topic_model
+from src.topics.modeling import NMFTopicModel, TopicModelResult
+from src.topics.utils import TopicModelConfig
 
 
 def prepare_dataset(
@@ -42,14 +45,45 @@ def run_sentiment_stage(
     return active_analyzer.predict_dataframe(canonical_df)
 
 
+def run_topic_stage(
+    sentiment_df: pd.DataFrame,
+    *,
+    config: TopicModelConfig | None = None,
+    topic_model: NMFTopicModel | None = None,
+    stability_runs: int = 3,
+) -> TopicModelResult:
+    """Discover NMF topics and enrich sentiment results with topic columns."""
+    required = {"review_id", "review_text", "clean_text", "sentiment_label", "sentiment_score"}
+    missing = sorted(required.difference(sentiment_df.columns))
+    if missing:
+        raise ValueError(
+            "Topic modeling requires sentiment-enriched canonical data. Missing: "
+            + ", ".join(missing)
+        )
+
+    active_model = topic_model or NMFTopicModel(config or TopicModelConfig())
+    if topic_model is not None and config is not None and topic_model.config != config:
+        raise ValueError("Provided topic model configuration does not match config.")
+
+    result = active_model.fit_dataframe(sentiment_df)
+    evaluation = evaluate_topic_model(
+        active_model,
+        result.dataframe,
+        stability_runs=stability_runs,
+    )
+    # Keep the result dataclass focused on model outputs while attaching evaluation
+    # as transparent metadata for persistence and UI consumers.
+    result.model.training_metadata["evaluation"] = evaluation
+    return result
+
+
 def run_pipeline(dataframe: pd.DataFrame) -> pd.DataFrame:
     """Run the future complete analysis pipeline.
 
-    Ingestion, model-free EDA, and sentiment inference are implemented. Topic
-    modeling, aspect analysis, and insight generation remain intentionally
-    deferred to their assigned phases.
+    Ingestion, EDA, sentiment analysis, and topic modeling are implemented.
+    Aspect analysis and insight generation remain deferred to later phases.
     """
     raise NotImplementedError(
-        "The end-to-end pipeline is not complete yet. Sentiment is available "
-        "through run_sentiment_stage; later NLP phases remain pending."
+        "The end-to-end pipeline is not complete yet. Sentiment and topic modeling "
+        "are available through their stage functions; later phases remain pending."
     )

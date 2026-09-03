@@ -41,8 +41,24 @@ models/*.pt
 models/*.pth
 models/*.bin
 models/metadata.json
+
+# Phase 4 local training inputs/artifacts
+data/training/*
+!data/training/.gitkeep
+!data/training/README.md
+models/logistic_regression/*.joblib
+models/distilbert/*.safetensors
+models/distilbert/*.bin
+models/distilbert/tokenizer.json
+models/distilbert/tokenizer_config.json
+models/distilbert/special_tokens_map.json
+models/distilbert/vocab.txt
+
+# Phase 5 dataset-specific topic-model artifacts
+models/topic_model/**/*.joblib
+models/topic_model/**/topic_assignments.csv
 PHASE_1_IMPLEMENTATION_NOTES.md
 PHASE_2_IMPLEMENTATION_NOTES.md
 PHASE_3_IMPLEMENTATION_NOTES.md
-README.md
 PHASE_4_IMPLEMENTATION_NOTES.md
+PHASE_5_IMPLEMENTATION_NOTES.md

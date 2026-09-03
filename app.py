@@ -52,6 +52,12 @@ def initialize_session_state() -> None:
         "sentiment_runtime_seconds": None,
         "sentiment_source_signature": None,
         "topic_summary": None,
+        "topic_complete": False,
+        "topic_metrics": None,
+        "topic_source_signature": None,
+        "topic_config": None,
+        "topic_model_runtime": None,
+        "topic_representatives": None,
         "aspect_summary": None,
         "insights": None,
         "source_signature": None,
@@ -78,6 +84,12 @@ def reset_dataset_state(source_signature: str) -> None:
     st.session_state["sentiment_runtime_seconds"] = None
     st.session_state["sentiment_source_signature"] = None
     st.session_state["topic_summary"] = None
+    st.session_state["topic_complete"] = False
+    st.session_state["topic_metrics"] = None
+    st.session_state["topic_source_signature"] = None
+    st.session_state["topic_config"] = None
+    st.session_state["topic_model_runtime"] = None
+    st.session_state["topic_representatives"] = None
     st.session_state["aspect_summary"] = None
     st.session_state["insights"] = None
     st.session_state["ingestion_statistics"] = None
@@ -113,7 +125,7 @@ def render_sidebar() -> None:
             icon="🗂️",
         )
         st.divider()
-        st.caption("Phase 4: sentiment analysis")
+        st.caption("Phase 5: topic modeling")
 
 
 def render_validation_report(report: ValidationReport) -> None:

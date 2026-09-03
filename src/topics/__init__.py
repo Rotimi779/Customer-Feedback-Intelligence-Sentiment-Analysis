@@ -1,4 +1,1 @@
-"""Topics package.
-
-Implementation is intentionally deferred to its corresponding roadmap phase.
-"""
+"""Topic-modeling package for the MVP NMF implementation."""

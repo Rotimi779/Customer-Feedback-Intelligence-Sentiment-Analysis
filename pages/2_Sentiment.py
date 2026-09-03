@@ -320,6 +320,14 @@ def main() -> None:
             st.session_state["sentiment_source_signature"] = st.session_state.get(
                 "source_signature"
             )
+            # A new sentiment result invalidates all downstream topic outputs.
+            st.session_state["topic_complete"] = False
+            st.session_state["topic_summary"] = None
+            st.session_state["topic_metrics"] = None
+            st.session_state["topic_source_signature"] = None
+            st.session_state["topic_config"] = None
+            st.session_state["topic_model_runtime"] = None
+            st.session_state["topic_representatives"] = None
 
     results_df = st.session_state.get("results_df")
     stored_model = st.session_state.get("selected_sentiment_model")
