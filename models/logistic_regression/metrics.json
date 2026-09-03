@@ -51,7 +51,7 @@
     ]
   ],
   "dataset_name": "amazon_reviews",
-  "inference_seconds": 0.045312599977478385,
+  "inference_seconds": 0.04338580000330694,
   "labels": [
     "Negative",
     "Neutral",
@@ -60,10 +60,10 @@
   "macro_f1": 0.512371519978218,
   "mean_confidence": 0.7571119892848148,
   "model_name": "logistic_regression",
-  "model_size_bytes": 1265169,
+  "model_size_bytes": 1500645,
   "precision_macro": 0.48363950724011234,
   "recall_macro": 0.5549516908212561,
-  "samples_per_second": 16264.791699578249,
+  "samples_per_second": 16987.124818346663,
   "split_config": {
     "random_state": 42,
     "test_size": 0.15,
@@ -80,7 +80,7 @@
     "random_state": 42,
     "regularization_c": 1.0
   },
-  "training_seconds": 0.4628802000079304,
+  "training_seconds": 0.5043259999947622,
   "validation_metrics": {
     "accuracy": 0.9253731343283582,
     "classification_report": {

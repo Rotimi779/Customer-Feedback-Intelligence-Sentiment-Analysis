@@ -1,0 +1,4 @@
+{
+  "model_name": "distilbert",
+  "rationale": "DistilBERT achieved higher accuracy, Macro F1, and Weighted F1 than Logistic Regression, providing better predictive performance despite substantially slower inference and a larger model size."
+}

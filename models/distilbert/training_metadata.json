@@ -1,0 +1,60 @@
+{
+  "base_model_name": "distilbert/distilbert-base-uncased",
+  "best_epoch": 4,
+  "best_validation_macro_f1": 0.6064820261729187,
+  "class_distribution": {
+    "Negative": 324,
+    "Neutral": 142,
+    "Positive": 4446
+  },
+  "dataset_fingerprint": "d7107a02ef7baa0ded22a0541ebf3a3d1a32def209c1b11ad4d8c67bf39642b6",
+  "dataset_name": "amazon_reviews",
+  "device": "cpu",
+  "model_name": "distilbert",
+  "split_config": {
+    "random_state": 42,
+    "test_size": 0.15,
+    "train_size": 0.7,
+    "validation_size": 0.15
+  },
+  "test_rows": 737,
+  "train_rows": 3438,
+  "training_config": {
+    "base_model_name": "distilbert/distilbert-base-uncased",
+    "batch_size": 16,
+    "early_stopping_patience": 2,
+    "epochs": 4,
+    "learning_rate": 2e-05,
+    "max_length": 256,
+    "random_state": 42,
+    "warmup_ratio": 0.1,
+    "weight_decay": 0.01
+  },
+  "training_history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.42268820681370967,
+      "validation_accuracy": 0.9226594301221167,
+      "validation_macro_f1": 0.4671550930841651
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.1866003777506913,
+      "validation_accuracy": 0.9430122116689281,
+      "validation_macro_f1": 0.5613217032145865
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.12395632877339458,
+      "validation_accuracy": 0.9389416553595658,
+      "validation_macro_f1": 0.6046626984126985
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.0887704118252407,
+      "validation_accuracy": 0.9430122116689281,
+      "validation_macro_f1": 0.6064820261729187
+    }
+  ],
+  "validation_rows": 737
+}

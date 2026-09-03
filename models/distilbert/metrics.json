@@ -1,0 +1,89 @@
+{
+  "accuracy": 0.9484396200814111,
+  "best_epoch": 4,
+  "best_validation_macro_f1": 0.6064820261729187,
+  "classification_report": {
+    "Negative": {
+      "f1-score": 0.7676767676767676,
+      "precision": 0.7450980392156863,
+      "recall": 0.7916666666666666,
+      "support": 48.0
+    },
+    "Neutral": {
+      "f1-score": 0.07692307692307693,
+      "precision": 0.25,
+      "recall": 0.045454545454545456,
+      "support": 22.0
+    },
+    "Positive": {
+      "f1-score": 0.9785025945144552,
+      "precision": 0.967741935483871,
+      "recall": 0.9895052473763118,
+      "support": 667.0
+    },
+    "accuracy": 0.9484396200814111,
+    "macro avg": {
+      "f1-score": 0.6077008130381,
+      "precision": 0.6542799915665191,
+      "recall": 0.6088754864991747,
+      "support": 737.0
+    },
+    "weighted avg": {
+      "f1-score": 0.9378589187000463,
+      "precision": 0.93181625081424,
+      "recall": 0.9484396200814111,
+      "support": 737.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      38,
+      2,
+      8
+    ],
+    [
+      7,
+      1,
+      14
+    ],
+    [
+      6,
+      1,
+      660
+    ]
+  ],
+  "dataset_name": "amazon_reviews",
+  "inference_seconds": 58.67251569998916,
+  "labels": [
+    "Negative",
+    "Neutral",
+    "Positive"
+  ],
+  "macro_f1": 0.6077008130381,
+  "mean_confidence": 0.9762995259247448,
+  "model_name": "distilbert",
+  "model_size_bytes": 268782629,
+  "precision_macro": 0.6542799915665191,
+  "recall_macro": 0.6088754864991747,
+  "samples_per_second": 12.561247650748614,
+  "split_config": {
+    "random_state": 42,
+    "test_size": 0.15,
+    "train_size": 0.7,
+    "validation_size": 0.15
+  },
+  "test_rows": 737,
+  "training_config": {
+    "base_model_name": "distilbert/distilbert-base-uncased",
+    "batch_size": 16,
+    "early_stopping_patience": 2,
+    "epochs": 4,
+    "learning_rate": 2e-05,
+    "max_length": 256,
+    "random_state": 42,
+    "warmup_ratio": 0.1,
+    "weight_decay": 0.01
+  },
+  "training_seconds": 7619.7275235000125,
+  "weighted_f1": 0.9378589187000463
+}
