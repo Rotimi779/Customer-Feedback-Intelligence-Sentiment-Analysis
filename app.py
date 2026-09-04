@@ -65,6 +65,9 @@ def initialize_session_state() -> None:
         "aspect_source_signature": None,
         "aspect_runtime_seconds": None,
         "insights": None,
+        "insight_complete": False,
+        "insight_source_signature": None,
+        "insight_runtime_seconds": None,
         "source_signature": None,
         "ingestion_statistics": None,
     }
@@ -102,6 +105,9 @@ def reset_dataset_state(source_signature: str) -> None:
     st.session_state["aspect_source_signature"] = None
     st.session_state["aspect_runtime_seconds"] = None
     st.session_state["insights"] = None
+    st.session_state["insight_complete"] = False
+    st.session_state["insight_source_signature"] = None
+    st.session_state["insight_runtime_seconds"] = None
     st.session_state["ingestion_statistics"] = None
 
 
@@ -135,7 +141,7 @@ def render_sidebar() -> None:
             icon="🗂️",
         )
         st.divider()
-        st.caption("Phase 6: aspect analysis")
+        st.caption("Phase 7: business insights")
 
 
 def render_validation_report(report: ValidationReport) -> None:

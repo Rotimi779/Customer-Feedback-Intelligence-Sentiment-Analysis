@@ -349,6 +349,9 @@ def main() -> None:
             st.session_state["aspect_source_signature"] = None
             st.session_state["aspect_runtime_seconds"] = None
             st.session_state["insights"] = None
+            st.session_state["insight_complete"] = False
+            st.session_state["insight_source_signature"] = None
+            st.session_state["insight_runtime_seconds"] = None
 
     results_df = st.session_state.get("results_df")
     stored_model = st.session_state.get("selected_sentiment_model")

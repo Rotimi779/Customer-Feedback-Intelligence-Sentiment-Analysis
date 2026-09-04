@@ -6,6 +6,7 @@ import pandas as pd
 
 from src.aspects import AspectAnalysisResult, analyze_aspects
 from src.ingestion.cleaning import build_canonical_dataframe
+from src.insights import BusinessInsightsResult, generate_business_insights
 from src.ingestion.schema import (
     DEFAULT_INGESTION_CONFIG,
     CanonicalizationResult,
@@ -98,14 +99,46 @@ def run_aspect_stage(topic_df: pd.DataFrame) -> AspectAnalysisResult:
     return analyze_aspects(topic_df)
 
 
+def run_insight_stage(
+    aspect_df: pd.DataFrame,
+    *,
+    topic_summary: pd.DataFrame | None = None,
+    aspect_summary: pd.DataFrame | None = None,
+    aspect_mentions: pd.DataFrame | None = None,
+) -> BusinessInsightsResult:
+    """Generate Phase 7 business insights from Phase 6 enriched results."""
+    required = {
+        "review_id",
+        "review_text",
+        "sentiment_label",
+        "topic_id",
+        "topic_label",
+        "detected_aspects",
+        "aspect_sentiment",
+    }
+    missing = sorted(required.difference(aspect_df.columns))
+    if missing:
+        raise ValueError(
+            "Business insights require Phase 6 aspect-enriched data. Missing: "
+            + ", ".join(missing)
+        )
+    return generate_business_insights(
+        aspect_df,
+        topic_summary=topic_summary,
+        aspect_summary=aspect_summary,
+        aspect_mentions=aspect_mentions,
+    )
+
+
 def run_pipeline(dataframe: pd.DataFrame) -> pd.DataFrame:
     """Run the future complete analysis pipeline.
 
-    Ingestion, EDA, sentiment analysis, topic modeling, and aspect analysis are
-    implemented. Business-insight generation remains deferred to Phase 7.
+    Ingestion, EDA, sentiment analysis, topic modeling, aspect analysis, and
+    business-insight generation are implemented. Final dashboard integration
+    and deployment remain assigned to later phases.
     """
     raise NotImplementedError(
         "The end-to-end pipeline is not complete yet. Sentiment, topic modeling, "
-        "and aspect analysis are available through stage functions; business "
-        "insights remain pending."
+        "aspect analysis, and business insights are available through stage "
+        "functions; final dashboard integration remains pending."
     )

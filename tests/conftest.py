@@ -160,3 +160,41 @@ def aspect_topic_df() -> pd.DataFrame:
             },
         ]
     )
+
+
+@pytest.fixture
+def insight_topic_df() -> pd.DataFrame:
+    """Phase 5-style dated data with clear strengths, pain points, and trends."""
+    rows = [
+        # Earlier period: battery/support are healthy; billing is small and neutral.
+        ("i01", "Battery life is excellent and charging is fast.", "Positive", 0, "Battery / Charge", "2026-01-05", 5),
+        ("i02", "The battery is reliable and charging works well.", "Positive", 0, "Battery / Charge", "2026-01-05", 5),
+        ("i03", "Battery performance is good and the charger is convenient.", "Positive", 0, "Battery / Charge", "2026-01-05", 4),
+        ("i04", "Customer support solved my issue quickly.", "Positive", 1, "Support / Service", "2026-01-05", 5),
+        ("i05", "The support agent was helpful and professional.", "Positive", 1, "Support / Service", "2026-01-05", 5),
+        ("i06", "Billing was average and the payment worked.", "Neutral", 2, "Billing / Payment", "2026-01-05", 3),
+        # Recent period: billing expands and becomes strongly negative.
+        ("i07", "Billing charged me twice and the refund is still missing.", "Negative", 2, "Billing / Payment", "2026-02-05", 1),
+        ("i08", "The payment failed and billing support did not resolve the refund.", "Negative", 2, "Billing / Payment", "2026-02-05", 1),
+        ("i09", "I was charged again and the billing invoice is wrong.", "Negative", 2, "Billing / Payment", "2026-02-05", 1),
+        ("i10", "The subscription billing is expensive and the refund process is confusing.", "Negative", 2, "Billing / Payment", "2026-02-05", 2),
+        ("i11", "Battery life is acceptable but charging is average.", "Neutral", 0, "Battery / Charge", "2026-02-05", 3),
+        ("i12", "Customer support answered quickly and fixed the problem.", "Positive", 1, "Support / Service", "2026-02-05", 5),
+    ]
+    return pd.DataFrame(
+        [
+            {
+                "review_id": review_id,
+                "review_text": text,
+                "clean_text": text,
+                "sentiment_label": label,
+                "sentiment_score": 0.90,
+                "topic_id": topic_id,
+                "topic_label": topic_label,
+                "date": date,
+                "rating": rating,
+                "product": "Demo Product",
+            }
+            for review_id, text, label, topic_id, topic_label, date, rating in rows
+        ]
+    )

@@ -2,8 +2,8 @@
 
 A portfolio-focused NLP application that converts customer-feedback CSV files
 into a standardized analysis dataset, explores it through EDA, and enriches each
-review with sentiment, topic, and rule-based aspect outputs before the later
-business-insights and final dashboard phases.
+review with sentiment, topic, rule-based aspect outputs, and evidence-backed business
+insights before the final dashboard-integration and deployment phases.
 
 ## Current status
 
@@ -15,11 +15,12 @@ The cumulative codebase now includes:
 4. Sentiment Analysis
 5. Topic Modeling
 6. Aspect Analysis
+7. Business Insights
 
-Phase 6 adds a transparent rule-based aspect extractor, synonym/phrase mapping,
-review-sentiment association, aspect aggregation, visualizations, Streamlit
-exploration, and tests. The MVP intentionally reuses review-level sentiment for
-each detected aspect; it does not claim clause-level aspect sentiment.
+Phase 7 adds deterministic executive summaries, evidence-backed findings, cautious
+rule-based recommendations, optional date-based trend analysis, and exportable
+reports. It consumes the existing sentiment, topic, and aspect outputs rather than
+introducing another predictive model.
 
 ## Application workflow
 
@@ -34,6 +35,9 @@ each detected aspect; it does not claim clause-level aspect sentiment.
 9. Open **Aspect Analysis** and run the rule-based aspect stage.
 10. Inspect aspect frequency, sentiment, optional rating rankings, associated topics,
     and supporting reviews.
+11. Open **Insights** and generate the evidence-backed summary, recommendations, and
+    optional date-based trends.
+12. Download the enriched CSV, Markdown insight report, or recommendation table.
 
 Uploaded customer files are processed in memory. Do not upload confidential or
 sensitive personal data to this portfolio application.
@@ -164,6 +168,11 @@ DistilBERT training is substantially heavier than Logistic Regression. CPU
 training is supported by the code but a CUDA-capable environment is much
 faster when available.
 
+The trained `models/distilbert/model.safetensors` file is intentionally kept as a
+local artifact when it exceeds the repository hosting limit. Recreate it with the
+training command above in a fresh clone; the application only offers DistilBERT
+inference when the required local model weights are present.
+
 ## Compare and select the production model
 
 Print the common evaluation table:
@@ -216,7 +225,7 @@ Training code and inference code are intentionally separated. The Streamlit app
 uses only the stable `SentimentAnalyzer` interface and does not know how either
 model was trained.
 
-## Repository structure (Phase 4)
+## Repository structure (cumulative through Phase 7)
 
 ```text
 customer-feedback-intelligence/
@@ -383,3 +392,62 @@ Automated evaluation reports structural coverage and sentiment-association
 completeness. Correct extraction, label relevance, and business usefulness still
 require manual inspection because the MVP does not include a gold aspect-labelled
 dataset.
+
+# Phase 7 — Business Insights
+
+Phase 7 turns the outputs from Sentiment, Topics, and Aspect Analysis into a
+decision-oriented layer without adding another machine-learning model. All summary
+text and recommendations are deterministic and derived from measured results.
+
+The insight engine reports at minimum:
+
+- overall sentiment breakdown
+- total reviews analyzed
+- most discussed topic
+- strongest supported positive aspect
+- largest supported negative aspect / priority improvement area
+- evidence-backed key findings
+- cautious rule-based recommendations
+
+When usable date metadata exists, it also calculates review volume, sentiment share,
+topic prevalence, and aspect-negative-share trends. Recent change signals are shown
+only when minimum evidence support is available, and the interface explicitly avoids
+causal language.
+
+The Insights page can export:
+
+```text
+customer_feedback_enriched.csv
+business_insights.md
+recommendations.csv
+```
+
+The enriched dataset remains the Phase 6 review-level schema; Phase 7 produces
+separate structured insight objects rather than adding speculative text columns to
+every review.
+
+## Business-insight architecture
+
+```text
+Sentiment results
+        |
+Topic assignments
+        |
+Aspect results
+        |
+Optional metadata
+        v
+Deterministic insight generator
+        |
+        +--> Executive summary
+        +--> Key findings + evidence
+        +--> Rule-based recommendations
+        +--> Optional trends
+        v
+Insights page + exports
+```
+
+Recommendations are intended as investigation priorities, not causal conclusions.
+The known Phase 6 limitation also remains: review-level sentiment is reused for all
+detected aspects in a review.
+
