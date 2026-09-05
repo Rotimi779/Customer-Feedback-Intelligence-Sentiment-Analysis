@@ -25,31 +25,64 @@ def check_page_prerequisites(state: Mapping[str, Any], page: str) -> Prerequisit
     normalized = page.strip().casefold().replace(" ", "_")
 
     has_canonical = _has_dataframe(state, "canonical_df") or _has_dataframe(state, "clean_df")
-    if normalized in {"overview", "sentiment", "sentiment_analysis"}:
+    if normalized == "overview":
         if not has_canonical:
-            return PrerequisiteStatus(False, "Upload and confirm a dataset first.", "app.py")
+            return PrerequisiteStatus(
+                False,
+                "Upload and confirm a dataset first.",
+                "app.py",
+            )
+        return PrerequisiteStatus(True)
+
+    if normalized in {"sentiment", "sentiment_analysis"}:
+        if not has_canonical:
+            return PrerequisiteStatus(
+                False,
+                "Upload and confirm a dataset first.",
+                "app.py",
+            )
+        if not state.get("sentiment_complete"):
+            return PrerequisiteStatus(
+                False,
+                "Run Full Analysis from Upload & Setup before exploring sentiment results.",
+                "app.py",
+            )
         return PrerequisiteStatus(True)
 
     if normalized in {"topics", "topic_modeling"}:
-        if not has_canonical:
-            return PrerequisiteStatus(False, "Upload and confirm a dataset first.", "app.py")
-        if not state.get("sentiment_complete"):
-            return PrerequisiteStatus(False, "Run sentiment analysis before exploring topics.", "pages/2_Sentiment.py")
+        if not state.get("topic_complete"):
+            return PrerequisiteStatus(
+                False,
+                "Run Full Analysis from Upload & Setup before exploring topic results.",
+                "app.py",
+            )
         return PrerequisiteStatus(True)
 
     if normalized in {"aspects", "aspect_analysis"}:
-        if not state.get("topic_complete"):
-            return PrerequisiteStatus(False, "Run topic modeling before aspect analysis.", "pages/3_Topics.py")
+        if not state.get("aspect_complete"):
+            return PrerequisiteStatus(
+                False,
+                "Run Full Analysis from Upload & Setup before exploring aspect results.",
+                "app.py",
+            )
         return PrerequisiteStatus(True)
 
     if normalized in {"insights", "business_insights"}:
-        if not state.get("aspect_complete"):
-            return PrerequisiteStatus(False, "Run aspect analysis before generating business insights.", "pages/4_Aspect_Analysis.py")
+        if not state.get("insight_complete"):
+            return PrerequisiteStatus(
+                False,
+                "Run Full Analysis from Upload & Setup before exploring business insights.",
+                "app.py",
+            )
         return PrerequisiteStatus(True)
 
     if normalized in {"data_explorer", "explorer"}:
         if not has_canonical:
-            return PrerequisiteStatus(False, "Upload and confirm a dataset first.", "app.py")
+            return PrerequisiteStatus(
+                False,
+                "Upload and confirm a dataset first.",
+                "app.py",
+            )
         return PrerequisiteStatus(True)
 
     raise ValueError(f"Unknown dashboard page '{page}'.")

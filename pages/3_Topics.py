@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import logging
-import time
-
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -18,10 +15,8 @@ from src.dashboard.components import (
 from src.dashboard.errors import check_page_prerequisites
 from src.dashboard.filters import apply_dashboard_filters
 from src.dashboard.formatting import SENTIMENT_COLORS
-from src.dashboard.state import initialize_session_state, invalidate_after_topics
+from src.dashboard.state import initialize_session_state
 
-from src.pipeline import run_topic_stage
-from src.topics.utils import TopicModelConfig, TopicModelError
 from src.topics.visualization import (
     build_topic_distribution_chart,
     build_topic_frequency_chart,
@@ -30,8 +25,6 @@ from src.topics.visualization import (
 )
 
 APP_TITLE = "Topic Modeling"
-LOGGER = logging.getLogger(__name__)
-
 
 def _current_topic_signature() -> str:
     source = str(st.session_state.get("source_signature") or "")
@@ -186,8 +179,7 @@ def main() -> None:
     initialize_session_state(st.session_state)
     st.title(APP_TITLE)
     st.caption(
-        "Discover dataset-specific themes with TF-IDF + Non-negative Matrix "
-        "Factorization (NMF). The MVP intentionally uses one topic-modeling method."
+        "Explore the saved NMF topics produced by Run Full Analysis on the Upload & Setup page."
     )
 
     status = check_page_prerequisites(st.session_state, "topics")
@@ -200,51 +192,6 @@ def main() -> None:
         st.warning("The current results do not contain sentiment predictions yet.")
         st.page_link("pages/2_Sentiment.py", label="Go to Sentiment", icon="🙂")
         return
-
-    unique_reviews = results_df["clean_text"].astype(str).str.strip().replace("", pd.NA).dropna().nunique()
-    if unique_reviews < 5:
-        st.warning("At least five usable unique reviews are needed for the MVP topic configuration.")
-        return
-
-    max_topics = min(15, int(unique_reviews))
-    default_topics = min(8, max_topics)
-    n_topics = st.slider(
-        "Number of topics",
-        min_value=5,
-        max_value=max_topics,
-        value=default_topics,
-        help="The phase specification recommends experimenting with 5–15 topics.",
-    )
-
-    config = TopicModelConfig(n_topics=n_topics)
-    run_clicked = st.button("Run Topic Modeling", type="primary", use_container_width=True)
-
-    if run_clicked:
-        try:
-            with st.spinner("Discovering topics and evaluating stability..."):
-                start = time.perf_counter()
-                result = run_topic_stage(results_df, config=config, stability_runs=3)
-                runtime = time.perf_counter() - start
-        except (TopicModelError, ValueError) as exc:
-            st.error(str(exc))
-        except Exception:
-            LOGGER.exception("Topic modeling failed")
-            st.error(
-                "Topic modeling could not be completed. Try fewer topics or confirm "
-                "that the prepared reviews contain enough meaningful vocabulary."
-            )
-        else:
-            st.session_state["results_df"] = result.dataframe
-            st.session_state["topic_summary"] = result.summary
-            st.session_state["topic_metrics"] = result.model.training_metadata.get("evaluation")
-            st.session_state["topic_complete"] = True
-            st.session_state["topic_source_signature"] = _current_topic_signature()
-            st.session_state["topic_config"] = config.as_dict()
-            st.session_state["topic_model_runtime"] = runtime
-            st.session_state["topic_representatives"] = result.representative_review_ids
-            # Topic changes invalidate downstream aspect/insight outputs.
-            invalidate_after_topics(st.session_state)
-
 
     summary = st.session_state.get("topic_summary")
     metrics = st.session_state.get("topic_metrics")

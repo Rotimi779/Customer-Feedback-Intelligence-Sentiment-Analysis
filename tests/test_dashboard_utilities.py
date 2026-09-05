@@ -31,15 +31,26 @@ def test_page_prerequisites_follow_pipeline_order() -> None:
     canonical = pd.DataFrame({"review_text": ["x"], "clean_text": ["x"]})
     state: dict[str, object] = {"canonical_df": canonical}
 
-    assert check_page_prerequisites(state, "sentiment").ready
-    topic_status = check_page_prerequisites(state, "topics")
-    assert not topic_status.ready
-    assert topic_status.next_page == "pages/2_Sentiment.py"
+    sentiment_status = check_page_prerequisites(state, "sentiment")
+    assert not sentiment_status.ready
+    assert sentiment_status.next_page == "app.py"
 
     state["sentiment_complete"] = True
-    assert check_page_prerequisites(state, "topics").ready
-    assert not check_page_prerequisites(state, "aspects").ready
+    assert check_page_prerequisites(state, "sentiment").ready
+
+    topic_status = check_page_prerequisites(state, "topics")
+    assert not topic_status.ready
+    assert topic_status.next_page == "app.py"
+
     state["topic_complete"] = True
-    assert check_page_prerequisites(state, "aspects").ready
+    assert check_page_prerequisites(state, "topics").ready
+
+    assert not check_page_prerequisites(state, "aspects").ready
+
     state["aspect_complete"] = True
+    assert check_page_prerequisites(state, "aspects").ready
+
+    assert not check_page_prerequisites(state, "insights").ready
+
+    state["insight_complete"] = True
     assert check_page_prerequisites(state, "insights").ready

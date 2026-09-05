@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import logging
-import time
-
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -18,26 +15,15 @@ from src.dashboard.components import (
 )
 from src.dashboard.errors import check_page_prerequisites
 from src.dashboard.filters import apply_dashboard_filters
-from src.dashboard.state import initialize_session_state, invalidate_after_sentiment
+from src.dashboard.state import initialize_session_state
 
 from src.sentiment import (
-    SentimentAnalyzer,
     SentimentModelName,
-    available_sentiment_models,
     load_production_model_selection,
     load_saved_model_comparison,
 )
 
 APP_TITLE = "Sentiment Analysis"
-LOGGER = logging.getLogger(__name__)
-
-
-@st.cache_resource(show_spinner=False)
-def _load_analyzer(model_name: str) -> SentimentAnalyzer:
-    """Cache heavy model artifacts across ordinary Streamlit reruns."""
-    return SentimentAnalyzer.load(SentimentModelName(model_name))
-
-
 
 
 def _render_model_comparison() -> None:
@@ -225,8 +211,8 @@ def main() -> None:
     initialize_session_state(st.session_state)
     st.title(APP_TITLE)
     st.caption(
-        "Compare the classical baseline with DistilBERT, then run the selected "
-        "local model against the prepared canonical dataset."
+        "Explore the saved sentiment results produced by Run Full Analysis on the "
+        "Upload & Setup page."
     )
 
     status = check_page_prerequisites(st.session_state, "sentiment")
@@ -242,85 +228,6 @@ def main() -> None:
     st.subheader("Model evaluation")
     _render_model_comparison()
     st.divider()
-
-    available = available_sentiment_models()
-    if not available:
-        st.warning(
-            "No trained sentiment artifacts were found. The Phase 4 code is ready, "
-            "but inference requires training at least one local model first."
-        )
-        st.code(
-            "python -m src.sentiment.train_baseline --input data/training/YOUR_LABELLED_DATA.csv\n"
-            "python -m src.sentiment.train_transformer --input data/training/YOUR_LABELLED_DATA.csv",
-            language="powershell",
-        )
-        st.caption(
-            "Use the same labelled dataset and split seed for a fair comparison. "
-            "The training CSV must contain review_text and three-class sentiment_label columns."
-        )
-        return
-
-    selection = load_production_model_selection()
-    preferred = None
-    if selection:
-        try:
-            candidate = SentimentModelName(selection["model_name"])
-            if candidate in available:
-                preferred = candidate
-        except (KeyError, ValueError):
-            preferred = None
-    preferred = preferred or available[0]
-
-    selected_model = st.selectbox(
-        "Inference model",
-        options=available,
-        index=available.index(preferred),
-        format_func=lambda model: model.display_name,
-        help="Only locally trained model artifacts are shown here.",
-    )
-
-    progress = st.progress(0.0, text="Ready to run sentiment inference.")
-    run_clicked = st.button(
-        "Run Sentiment Analysis",
-        type="primary",
-        use_container_width=True,
-    )
-
-    if run_clicked:
-        try:
-            analyzer = _load_analyzer(selected_model.value)
-            start = time.perf_counter()
-
-            def update_progress(done: int, total: int) -> None:
-                fraction = 1.0 if total == 0 else done / total
-                progress.progress(
-                    fraction,
-                    text=f"Classifying reviews: {done:,} / {total:,}",
-                )
-
-            result = analyzer.predict_dataframe(
-                clean_df,
-                progress_callback=update_progress,
-            )
-            runtime_seconds = time.perf_counter() - start
-        except Exception:
-            LOGGER.exception("Sentiment inference failed for model=%s", selected_model.value)
-            st.error(
-                "Sentiment inference could not be completed. Confirm that the selected "
-                "model artifacts are present and compatible with this project."
-            )
-        else:
-            progress.progress(1.0, text="Sentiment inference complete.")
-            st.session_state["results_df"] = result.dataframe
-            st.session_state["sentiment_complete"] = True
-            st.session_state["selected_sentiment_model"] = selected_model.value
-            st.session_state["sentiment_runtime_seconds"] = runtime_seconds
-            st.session_state["sentiment_source_signature"] = st.session_state.get(
-                "source_signature"
-            )
-            # A new sentiment result invalidates all downstream saved outputs.
-            invalidate_after_sentiment(st.session_state)
-
 
     results_df = st.session_state.get("results_df")
     stored_model = st.session_state.get("selected_sentiment_model")

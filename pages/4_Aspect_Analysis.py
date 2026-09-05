@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import hashlib
-import logging
-import time
 
 import pandas as pd
 import streamlit as st
 
-from src.aspects import AspectAnalysisError
 from src.aspects.aggregation import build_aspect_summary, explode_aspect_mentions
 from src.dashboard.components import (
     render_empty_filtered_state,
@@ -19,18 +16,15 @@ from src.dashboard.components import (
 )
 from src.dashboard.errors import check_page_prerequisites
 from src.dashboard.filters import apply_dashboard_filters
-from src.dashboard.state import initialize_session_state, invalidate_after_aspects
+from src.dashboard.state import initialize_session_state
 from src.aspects.visualization import (
     build_aspect_frequency_chart,
     build_aspect_rating_chart,
     build_aspect_sentiment_chart,
     build_positive_negative_chart,
 )
-from src.pipeline import run_aspect_stage
 
 APP_TITLE = "Aspect Analysis"
-LOGGER = logging.getLogger(__name__)
-
 
 def _current_aspect_signature() -> str:
     """Tie stored aspect outputs to the current Phase 5 result."""
@@ -181,8 +175,8 @@ def main() -> None:
     initialize_session_state(st.session_state)
     st.title(APP_TITLE)
     st.caption(
-        "Identify explicit product/service aspects using transparent keyword, synonym, "
-        "and phrase rules, then reuse the Phase 4 review-level sentiment for each match."
+        "Explore the saved rule-based aspect results produced by Run Full Analysis on the "
+        "Upload & Setup page."
     )
 
     status = check_page_prerequisites(st.session_state, "aspects")
@@ -195,30 +189,6 @@ def main() -> None:
         st.warning("Phase 6 requires the current Phase 5 topic-enriched sentiment results.")
         st.page_link("pages/3_Topics.py", label="Go to Topics", icon="🧩")
         return
-
-    if st.button("Run Aspect Analysis", type="primary", use_container_width=True):
-        try:
-            with st.spinner("Extracting aspects and aggregating sentiment..."):
-                start = time.perf_counter()
-                result = run_aspect_stage(results_df)
-                runtime = time.perf_counter() - start
-        except (AspectAnalysisError, ValueError) as exc:
-            st.error(str(exc))
-        except Exception:
-            LOGGER.exception("Aspect analysis failed")
-            st.error(
-                "Aspect analysis could not be completed. Confirm that sentiment and "
-                "topic outputs are available and try again."
-            )
-        else:
-            st.session_state["results_df"] = result.dataframe
-            st.session_state["aspect_summary"] = result.summary
-            st.session_state["aspect_mentions"] = result.mentions
-            st.session_state["aspect_metrics"] = result.evaluation
-            st.session_state["aspect_complete"] = True
-            st.session_state["aspect_source_signature"] = _current_aspect_signature()
-            st.session_state["aspect_runtime_seconds"] = runtime
-            invalidate_after_aspects(st.session_state)
 
     summary = st.session_state.get("aspect_summary")
     mentions = st.session_state.get("aspect_mentions")

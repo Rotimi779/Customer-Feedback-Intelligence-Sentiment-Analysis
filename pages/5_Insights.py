@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import logging
-import time
 
 import pandas as pd
 import plotly.express as px
@@ -31,8 +29,6 @@ from src.insights import (
 from src.pipeline import run_insight_stage
 
 APP_TITLE = "Business Insights"
-LOGGER = logging.getLogger(__name__)
-
 
 def _current_insight_signature() -> str:
     """Tie generated insights to the exact upstream Phase 6 result."""
@@ -241,8 +237,8 @@ def main() -> None:
     initialize_session_state(st.session_state)
     st.title(APP_TITLE)
     st.caption(
-        "Turn sentiment, topic, and aspect outputs into concise evidence-backed findings, "
-        "cautious recommendations, and optional date-based trends."
+        "Explore the saved evidence-backed findings, recommendations, and trends produced "
+        "by Run Full Analysis on the Upload & Setup page."
     )
 
     status = check_page_prerequisites(st.session_state, "insights")
@@ -261,32 +257,6 @@ def main() -> None:
         st.warning("Phase 7 requires the current Phase 6 aspect-enriched analysis results.")
         st.page_link("pages/4_Aspect_Analysis.py", label="Go to Aspect Analysis", icon="🔎")
         return
-
-    if st.button("Generate Business Insights", type="primary", use_container_width=True):
-        try:
-            with st.spinner("Aggregating evidence and generating deterministic insights..."):
-                start = time.perf_counter()
-                result = run_insight_stage(
-                    results_df,
-                    topic_summary=st.session_state.get("topic_summary"),
-                    aspect_summary=st.session_state.get("aspect_summary"),
-                    aspect_mentions=st.session_state.get("aspect_mentions"),
-                )
-                runtime = time.perf_counter() - start
-        except (InsightsError, ValueError) as exc:
-            st.error(str(exc))
-        except Exception:
-            LOGGER.exception("Business insight generation failed")
-            st.error(
-                "Business insights could not be generated. Confirm that sentiment, topic, "
-                "and aspect outputs are current and try again."
-            )
-        else:
-            st.session_state["insights"] = result
-            st.session_state["insight_complete"] = True
-            st.session_state["insight_source_signature"] = _current_insight_signature()
-            st.session_state["insight_runtime_seconds"] = runtime
-            st.session_state["analysis_complete"] = True
 
     result = st.session_state.get("insights")
     stored_signature = st.session_state.get("insight_source_signature")
