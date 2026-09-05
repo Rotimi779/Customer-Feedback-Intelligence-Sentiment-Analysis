@@ -5,13 +5,9 @@ from __future__ import annotations
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from src.dashboard.formatting import SENTIMENT_COLORS
 
 
-SENTIMENT_COLORS = {
-    "Positive": "#2E8B57",
-    "Neutral": "#7A7A7A",
-    "Negative": "#D9534F",
-}
 
 
 def build_aspect_frequency_chart(summary: pd.DataFrame) -> go.Figure | None:

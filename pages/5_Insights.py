@@ -10,6 +10,17 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from src.dashboard.formatting import SENTIMENT_COLORS
+from src.dashboard.components import (
+    render_empty_filtered_state,
+    render_filter_status,
+    render_global_filters,
+    render_prerequisite,
+)
+from src.dashboard.errors import check_page_prerequisites
+from src.dashboard.filters import apply_dashboard_filters
+from src.dashboard.state import initialize_session_state
+
 from src.insights import (
     BusinessInsightsResult,
     InsightsError,
@@ -21,11 +32,6 @@ from src.pipeline import run_insight_stage
 
 APP_TITLE = "Business Insights"
 LOGGER = logging.getLogger(__name__)
-SENTIMENT_COLORS = {
-    "Positive": "#2E8B57",
-    "Neutral": "#7A7A7A",
-    "Negative": "#D9534F",
-}
 
 
 def _current_insight_signature() -> str:
@@ -232,17 +238,17 @@ def _render_exports(result: BusinessInsightsResult) -> None:
 def main() -> None:
     """Render the Phase 7 deterministic business-insight workflow."""
     st.set_page_config(page_title=APP_TITLE, page_icon="💡", layout="wide")
+    initialize_session_state(st.session_state)
     st.title(APP_TITLE)
     st.caption(
         "Turn sentiment, topic, and aspect outputs into concise evidence-backed findings, "
         "cautious recommendations, and optional date-based trends."
     )
 
-    results_df = st.session_state.get("results_df")
-    if not isinstance(results_df, pd.DataFrame) or results_df.empty:
-        st.warning("Run the earlier analysis stages before generating business insights.")
-        st.page_link("pages/4_Aspect_Analysis.py", label="Go to Aspect Analysis", icon="🔎")
+    status = check_page_prerequisites(st.session_state, "insights")
+    if not render_prerequisite(status):
         return
+    results_df = st.session_state.get("results_df")
 
     required = {
         "sentiment_label",
@@ -280,6 +286,7 @@ def main() -> None:
             st.session_state["insight_complete"] = True
             st.session_state["insight_source_signature"] = _current_insight_signature()
             st.session_state["insight_runtime_seconds"] = runtime
+            st.session_state["analysis_complete"] = True
 
     result = st.session_state.get("insights")
     stored_signature = st.session_state.get("insight_source_signature")
@@ -287,23 +294,41 @@ def main() -> None:
         isinstance(result, BusinessInsightsResult)
         and stored_signature == _current_insight_signature()
     ):
+        filters = render_global_filters(
+            results_df, st.session_state, key_prefix="insights_global"
+        )
+        filtered_results = apply_dashboard_filters(results_df, filters)
+        render_filter_status(len(results_df), len(filtered_results), filters)
+
         st.divider()
         runtime = st.session_state.get("insight_runtime_seconds")
         if runtime is not None:
             st.caption(f"Last insight-generation runtime: {float(runtime):.3f} seconds.")
+        if filtered_results.empty:
+            render_empty_filtered_state()
+            return
+
+        display_result = result
+        if filters.is_active():
+            # Recompute deterministic aggregates only; this does not rerun any ML model.
+            try:
+                display_result = run_insight_stage(filtered_results)
+            except (InsightsError, ValueError) as exc:
+                st.warning(f"Filtered insights are unavailable: {exc}")
+                return
 
         st.subheader("Executive summary")
-        st.write(result.executive_summary)
-        _render_kpis(result)
-        _render_findings(result)
-        _render_recommendations(result)
-        _render_trends(result)
+        st.write(display_result.executive_summary)
+        _render_kpis(display_result)
+        _render_findings(display_result)
+        _render_recommendations(display_result)
+        _render_trends(display_result)
 
         st.caption(
             "Known MVP limitation: aspect sentiment reuses review-level sentiment, so a "
             "single mixed review may not express the true sentiment of every detected aspect."
         )
-        _render_exports(result)
+        _render_exports(display_result)
 
 
 if __name__ == "__main__":

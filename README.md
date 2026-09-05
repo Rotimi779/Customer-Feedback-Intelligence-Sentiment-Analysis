@@ -3,7 +3,7 @@
 A portfolio-focused NLP application that converts customer-feedback CSV files
 into a standardized analysis dataset, explores it through EDA, and enriches each
 review with sentiment, topic, rule-based aspect outputs, and evidence-backed business
-insights before the final dashboard-integration and deployment phases.
+insights inside one integrated multi-page Streamlit dashboard.
 
 ## Current status
 
@@ -16,28 +16,25 @@ The cumulative codebase now includes:
 5. Topic Modeling
 6. Aspect Analysis
 7. Business Insights
+8. Dashboard Integration
 
-Phase 7 adds deterministic executive summaries, evidence-backed findings, cautious
-rule-based recommendations, optional date-based trend analysis, and exportable
-reports. It consumes the existing sentiment, topic, and aspect outputs rather than
-introducing another predictive model.
+Phase 8 connects the completed analysis modules through shared session state, global
+filters, consistent UI helpers, a one-click full-analysis workflow, prerequisite/error
+states, and a completed Data Explorer. It does not add a new ML model.
 
 ## Application workflow
 
 1. Open **Upload & Setup**.
 2. Upload a CSV or select the bundled sample dataset.
 3. Confirm review-text and optional metadata mappings.
-4. Prepare the canonical dataset.
-5. Open **Overview** for model-free EDA and filtering.
-6. After local sentiment artifacts exist, open **Sentiment**.
-7. Select a trained model and run sentiment inference.
-8. Open **Topics**, choose a topic count, and run NMF topic modeling.
-9. Open **Aspect Analysis** and run the rule-based aspect stage.
-10. Inspect aspect frequency, sentiment, optional rating rankings, associated topics,
-    and supporting reviews.
-11. Open **Insights** and generate the evidence-backed summary, recommendations, and
-    optional date-based trends.
-12. Download the enriched CSV, Markdown insight report, or recommendation table.
+4. Confirm the canonical dataset.
+5. Either click **Run Full Analysis** on Upload & Setup or rerun individual stages from
+   their dedicated pages.
+6. Open **Overview** for model-free EDA and shared filtering.
+7. Explore **Sentiment**, **Topics**, **Aspect Analysis**, and **Insights**.
+8. Global filters update saved results and summaries without rerunning ML models.
+9. Open **Data Explorer** to inspect and download filtered enriched records.
+10. Download the enriched CSV, Markdown insight report, or recommendation table.
 
 Uploaded customer files are processed in memory. Do not upload confidential or
 sensitive personal data to this portfolio application.
@@ -225,7 +222,7 @@ Training code and inference code are intentionally separated. The Streamlit app
 uses only the stable `SentimentAnalyzer` interface and does not know how either
 model was trained.
 
-## Repository structure (cumulative through Phase 7)
+## Repository structure (cumulative through Phase 8)
 
 ```text
 customer-feedback-intelligence/
@@ -253,6 +250,13 @@ customer-feedback-intelligence/
 │   ├── topics/
 │   ├── aspects/
 │   ├── insights/
+│   ├── dashboard/
+│   │   ├── state.py
+│   │   ├── filters.py
+│   │   ├── components.py
+│   │   ├── formatting.py
+│   │   ├── errors.py
+│   │   └── workflow.py
 │   └── pipeline.py
 ├── models/
 │   ├── logistic_regression/
@@ -451,3 +455,27 @@ Recommendations are intended as investigation priorities, not causal conclusions
 The known Phase 6 limitation also remains: review-level sentiment is reused for all
 detected aspects in a review.
 
+
+
+# Phase 8 — Dashboard Integration
+
+Phase 8 keeps the Streamlit multi-page workflow and integrates the completed modules
+into one application state. The dashboard now supports:
+
+- shared session-state initialization and stale-output invalidation
+- one **Run Full Analysis** action for sentiment → topics → aspects → insights
+- adaptive global filters for date, product, category, rating, sentiment, topic, aspect, and text
+- filter-only recomputation of summaries/visuals without rerunning ML
+- consistent Positive/Neutral/Negative color semantics
+- explicit page-prerequisite and empty-result states
+- a completed Data Explorer with filtered enriched CSV export
+- shared formatting and reusable dashboard components
+- integrated dashboard regression tests
+
+The existing per-stage buttons remain available for development and experimentation.
+Running a stage manually invalidates only the downstream outputs that are no longer
+current. Switching pages does not retrain or rerun saved model results.
+
+The locally trained `models/distilbert/model.safetensors` file remains intentionally
+excluded from Git when it exceeds repository hosting limits; Phase 8 does not replace
+or regenerate local model artifacts.

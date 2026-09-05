@@ -10,6 +10,16 @@ import pandas as pd
 import streamlit as st
 
 from src.aspects import AspectAnalysisError
+from src.aspects.aggregation import build_aspect_summary, explode_aspect_mentions
+from src.dashboard.components import (
+    render_empty_filtered_state,
+    render_filter_status,
+    render_global_filters,
+    render_prerequisite,
+)
+from src.dashboard.errors import check_page_prerequisites
+from src.dashboard.filters import apply_dashboard_filters
+from src.dashboard.state import initialize_session_state, invalidate_after_aspects
 from src.aspects.visualization import (
     build_aspect_frequency_chart,
     build_aspect_rating_chart,
@@ -165,58 +175,20 @@ def _render_aspect_explorer(
     st.dataframe(subset[columns].head(100), use_container_width=True, hide_index=True)
 
 
-def _filter_mentions(mentions: pd.DataFrame) -> pd.DataFrame:
-    """Apply simple aspect/sentiment/topic filters to the evidence table."""
-    filtered = mentions.copy()
-    with st.sidebar:
-        st.header("Aspect filters")
-        aspects = sorted(filtered["aspect"].dropna().astype(str).unique())
-        selected_aspects = st.multiselect("Aspects", aspects, default=aspects)
-        filtered = (
-            filtered.loc[filtered["aspect"].isin(selected_aspects)]
-            if selected_aspects
-            else filtered.iloc[0:0]
-        )
-
-        if "aspect_sentiment_label" in filtered.columns:
-            labels = sorted(filtered["aspect_sentiment_label"].dropna().astype(str).unique())
-            selected_labels = st.multiselect("Sentiment", labels, default=labels)
-            filtered = (
-                filtered.loc[filtered["aspect_sentiment_label"].isin(selected_labels)]
-                if selected_labels
-                else filtered.iloc[0:0]
-            )
-
-        if "topic_label" in filtered.columns:
-            topics = sorted(filtered["topic_label"].dropna().astype(str).unique())
-            selected_topics = st.multiselect("Topics", topics)
-            if selected_topics:
-                filtered = filtered.loc[filtered["topic_label"].isin(selected_topics)]
-
-        keyword = st.text_input("Review keyword", placeholder="Search review text")
-        if keyword.strip() and "review_text" in filtered.columns:
-            filtered = filtered.loc[
-                filtered["review_text"].astype(str).str.contains(
-                    keyword.strip(), case=False, regex=False, na=False
-                )
-            ]
-    return filtered.copy()
-
-
 def main() -> None:
     """Render Phase 6 rule-based aspect extraction and aggregation."""
     st.set_page_config(page_title=APP_TITLE, page_icon="🔎", layout="wide")
+    initialize_session_state(st.session_state)
     st.title(APP_TITLE)
     st.caption(
         "Identify explicit product/service aspects using transparent keyword, synonym, "
         "and phrase rules, then reuse the Phase 4 review-level sentiment for each match."
     )
 
-    results_df = st.session_state.get("results_df")
-    if not isinstance(results_df, pd.DataFrame) or results_df.empty:
-        st.warning("Run sentiment and topic modeling before Aspect Analysis.")
-        st.page_link("pages/3_Topics.py", label="Go to Topics", icon="🧩")
+    status = check_page_prerequisites(st.session_state, "aspects")
+    if not render_prerequisite(status):
         return
+    results_df = st.session_state.get("results_df")
 
     required = {"sentiment_label", "sentiment_score", "topic_id", "topic_label"}
     if not required.issubset(results_df.columns):
@@ -246,10 +218,7 @@ def main() -> None:
             st.session_state["aspect_complete"] = True
             st.session_state["aspect_source_signature"] = _current_aspect_signature()
             st.session_state["aspect_runtime_seconds"] = runtime
-            st.session_state["insights"] = None
-            st.session_state["insight_complete"] = False
-            st.session_state["insight_source_signature"] = None
-            st.session_state["insight_runtime_seconds"] = None
+            invalidate_after_aspects(st.session_state)
 
     summary = st.session_state.get("aspect_summary")
     mentions = st.session_state.get("aspect_mentions")
@@ -263,43 +232,47 @@ def main() -> None:
         and stored_signature == _current_aspect_signature()
         and {"detected_aspects", "aspect_sentiment"}.issubset(current_results.columns)
     ):
+        filters = render_global_filters(
+            current_results, st.session_state, key_prefix="aspects_global"
+        )
+        filtered_results = apply_dashboard_filters(current_results, filters)
+        render_filter_status(len(current_results), len(filtered_results), filters)
+
         st.divider()
         runtime = st.session_state.get("aspect_runtime_seconds")
         if runtime is not None:
             st.caption(f"Last aspect-analysis runtime: {float(runtime):.3f} seconds.")
+        if filtered_results.empty:
+            render_empty_filtered_state()
+            return
 
+        filtered_mentions = explode_aspect_mentions(filtered_results)
+        if filters.aspects and not filtered_mentions.empty:
+            filtered_mentions = filtered_mentions.loc[
+                filtered_mentions["aspect"].astype(str).isin(filters.aspects)
+            ].copy()
+        filtered_summary = build_aspect_summary(
+            filtered_mentions, total_reviews=len(filtered_results)
+        )
         _render_quality(st.session_state.get("aspect_metrics"))
-        _render_summary(summary, mentions)
-        _render_aspect_explorer(summary, mentions)
+        _render_summary(filtered_summary, filtered_mentions)
+        _render_aspect_explorer(filtered_summary, filtered_mentions)
 
         st.subheader("Filtered aspect evidence")
-        if mentions.empty:
-            st.info("No aspect evidence is available for the current dataset.")
+        if filtered_mentions.empty:
+            st.info("No aspect evidence is available for the active filters.")
         else:
-            filtered = _filter_mentions(mentions)
-            if filtered.empty:
-                st.info("No aspect mentions match the active filters.")
-            else:
-                display_columns = [
-                    column
-                    for column in (
-                        "review_id",
-                        "review_text",
-                        "aspect",
-                        "aspect_sentiment_label",
-                        "aspect_confidence",
-                        "topic_label",
-                        "rating",
-                        "product",
-                        "date",
-                    )
-                    if column in filtered.columns
-                ]
-                st.dataframe(
-                    filtered[display_columns].head(200),
-                    use_container_width=True,
-                    hide_index=True,
-                )
+            display_columns = [
+                column for column in (
+                    "review_id", "review_text", "aspect", "aspect_sentiment_label",
+                    "aspect_confidence", "topic_label", "rating", "product", "date"
+                ) if column in filtered_mentions.columns
+            ]
+            st.dataframe(
+                filtered_mentions[display_columns].head(200),
+                use_container_width=True,
+                hide_index=True,
+            )
 
 
 if __name__ == "__main__":

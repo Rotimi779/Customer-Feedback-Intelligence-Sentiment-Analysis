@@ -22,7 +22,20 @@ from src.ingestion import (
     rank_text_columns,
     validate_dataset,
 )
+from src.dashboard.state import (
+    initialize_session_state as initialize_dashboard_state,
+    reset_for_new_dataset,
+    set_canonical_dataset,
+)
+from src.dashboard.workflow import persist_full_analysis, run_full_analysis
 from src.pipeline import prepare_dataset
+from src.sentiment import (
+    SentimentAnalyzer,
+    SentimentModelName,
+    available_sentiment_models,
+    load_production_model_selection,
+)
+from src.topics.utils import TopicModelConfig
 
 APP_TITLE = "AI Customer Feedback Intelligence Platform"
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -40,75 +53,17 @@ def configure_logging() -> logging.Logger:
 
 
 def initialize_session_state() -> None:
-    """Create the shared state contract defined by the technical design."""
-    defaults = {
-        "raw_df": None,
-        "clean_df": None,
-        "column_mapping": None,
-        "analysis_complete": False,
-        "results_df": None,
-        "sentiment_complete": False,
-        "selected_sentiment_model": None,
-        "sentiment_runtime_seconds": None,
-        "sentiment_source_signature": None,
-        "topic_summary": None,
-        "topic_complete": False,
-        "topic_metrics": None,
-        "topic_source_signature": None,
-        "topic_config": None,
-        "topic_model_runtime": None,
-        "topic_representatives": None,
-        "aspect_summary": None,
-        "aspect_mentions": None,
-        "aspect_metrics": None,
-        "aspect_complete": False,
-        "aspect_source_signature": None,
-        "aspect_runtime_seconds": None,
-        "insights": None,
-        "insight_complete": False,
-        "insight_source_signature": None,
-        "insight_runtime_seconds": None,
-        "source_signature": None,
-        "ingestion_statistics": None,
-    }
-    for key, default_value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = default_value
+    """Initialize the shared Phase 8 dashboard state."""
+    initialize_dashboard_state(st.session_state)
 
 
-def reset_dataset_state(source_signature: str) -> None:
-    """Clear derived state when a different CSV becomes active."""
-    if st.session_state["source_signature"] == source_signature:
-        return
-
-    st.session_state["source_signature"] = source_signature
-    st.session_state["raw_df"] = None
-    st.session_state["clean_df"] = None
-    st.session_state["column_mapping"] = None
-    st.session_state["analysis_complete"] = False
-    st.session_state["results_df"] = None
-    st.session_state["sentiment_complete"] = False
-    st.session_state["selected_sentiment_model"] = None
-    st.session_state["sentiment_runtime_seconds"] = None
-    st.session_state["sentiment_source_signature"] = None
-    st.session_state["topic_summary"] = None
-    st.session_state["topic_complete"] = False
-    st.session_state["topic_metrics"] = None
-    st.session_state["topic_source_signature"] = None
-    st.session_state["topic_config"] = None
-    st.session_state["topic_model_runtime"] = None
-    st.session_state["topic_representatives"] = None
-    st.session_state["aspect_summary"] = None
-    st.session_state["aspect_mentions"] = None
-    st.session_state["aspect_metrics"] = None
-    st.session_state["aspect_complete"] = False
-    st.session_state["aspect_source_signature"] = None
-    st.session_state["aspect_runtime_seconds"] = None
-    st.session_state["insights"] = None
-    st.session_state["insight_complete"] = False
-    st.session_state["insight_source_signature"] = None
-    st.session_state["insight_runtime_seconds"] = None
-    st.session_state["ingestion_statistics"] = None
+def reset_dataset_state(source_signature: str, *, filename: str | None = None) -> None:
+    """Clear stale state when a different CSV becomes active."""
+    reset_for_new_dataset(
+        st.session_state,
+        source_signature,
+        uploaded_file_name=filename,
+    )
 
 
 @st.cache_data(show_spinner=False)
@@ -141,7 +96,7 @@ def render_sidebar() -> None:
             icon="🗂️",
         )
         st.divider()
-        st.caption("Phase 7: business insights")
+        st.caption("Phase 8: integrated dashboard")
 
 
 def render_validation_report(report: ValidationReport) -> None:
@@ -210,6 +165,124 @@ def render_canonical_result(mapping: ColumnMapping) -> None:
     )
 
 
+
+@st.cache_resource(show_spinner=False)
+def _load_full_analysis_analyzer(model_name: str) -> SentimentAnalyzer:
+    """Load a local sentiment model once for the integrated pipeline."""
+    return SentimentAnalyzer.load(SentimentModelName(model_name))
+
+
+def _preferred_sentiment_model(available: list[SentimentModelName]) -> SentimentModelName:
+    selection = load_production_model_selection()
+    if selection:
+        try:
+            candidate = SentimentModelName(selection["model_name"])
+            if candidate in available:
+                return candidate
+        except (KeyError, ValueError):
+            pass
+    return available[0]
+
+
+def render_full_analysis_controls(mapping: ColumnMapping) -> None:
+    """Launch the saved sentiment → topics → aspects → insights workflow."""
+    clean_df = st.session_state.get("canonical_df")
+    stored_mapping = st.session_state.get("column_mapping")
+    if not isinstance(clean_df, pd.DataFrame) or clean_df.empty:
+        return
+    if stored_mapping != mapping.as_dict():
+        return
+
+    st.divider()
+    st.subheader("Run full analysis")
+    st.caption(
+        "Run the completed NLP stages in order. Results are saved in session state, "
+        "so switching pages or changing filters does not rerun the models."
+    )
+
+    available = available_sentiment_models()
+    if not available:
+        st.warning(
+            "No local sentiment model artifacts are available. Train at least one "
+            "sentiment model before running the full pipeline."
+        )
+        return
+
+    preferred = _preferred_sentiment_model(available)
+    left, right = st.columns(2)
+    with left:
+        selected_model = st.selectbox(
+            "Sentiment model",
+            options=available,
+            index=available.index(preferred),
+            format_func=lambda model: model.display_name,
+            key="full_analysis_sentiment_model",
+        )
+    with right:
+        max_topics = min(15, len(clean_df))
+        if max_topics < 5:
+            st.warning("At least 5 usable reviews are required for the configured topic workflow.")
+            return
+        topic_count = st.slider(
+            "Number of topics",
+            min_value=5,
+            max_value=max_topics,
+            value=min(8, max_topics),
+            key="full_analysis_topic_count",
+        )
+
+    run_clicked = st.button(
+        "Run Full Analysis",
+        type="primary",
+        use_container_width=True,
+        disabled=bool(st.session_state.get("analysis_running")),
+    )
+    if not run_clicked:
+        if st.session_state.get("analysis_complete"):
+            st.success("Full analysis is complete. Explore the dedicated result pages.")
+        return
+
+    st.session_state["analysis_running"] = True
+    st.session_state["analysis_complete"] = False
+    st.session_state["last_error"] = None
+
+    status = st.status("Running full analysis...", expanded=True)
+
+    def update_stage(stage: str, message: str) -> None:
+        st.session_state["analysis_stage"] = stage
+        status.write(message)
+
+    try:
+        analyzer = _load_full_analysis_analyzer(selected_model.value)
+        result = run_full_analysis(
+            clean_df,
+            sentiment_model=selected_model,
+            sentiment_analyzer=analyzer,
+            topic_config=TopicModelConfig(n_topics=topic_count),
+            progress_callback=update_stage,
+        )
+        persist_full_analysis(
+            st.session_state,
+            result,
+            source_signature=str(st.session_state.get("source_signature") or ""),
+        )
+    except Exception as exc:
+        st.session_state["analysis_running"] = False
+        st.session_state["analysis_stage"] = "failed"
+        st.session_state["last_error"] = (
+            "Full analysis could not be completed. Earlier valid results were preserved. "
+            "Check model artifacts and the active dataset, then retry."
+        )
+        status.update(label="Analysis failed", state="error", expanded=True)
+        logging.getLogger(__name__).exception("Full dashboard analysis failed: %s", exc)
+        st.error(st.session_state["last_error"])
+    else:
+        status.update(label="Analysis complete", state="complete", expanded=False)
+        st.success(
+            f"Analysis complete in {result.timings['total_seconds']:.2f} seconds. "
+            "Sentiment, topics, aspects, and insights are ready across the dashboard."
+        )
+
 def main() -> None:
     """Render CSV upload, mapping, validation, and canonicalization."""
     st.set_page_config(
@@ -264,7 +337,7 @@ def main() -> None:
         return
 
     source_signature = hashlib.sha256(filename.encode("utf-8") + payload).hexdigest()
-    reset_dataset_state(source_signature)
+    reset_dataset_state(source_signature, filename=filename)
 
     try:
         loaded = load_csv_bytes(payload, filename)
@@ -409,11 +482,11 @@ def main() -> None:
     render_validation_report(report)
 
     st.caption(
-        "During this phase, Run Analysis validates and prepares the canonical "
-        "dataset. NLP inference is added in later phases."
+        "Confirm the dataset first. You can then run the complete saved analysis "
+        "pipeline from this page or rerun individual stages later."
     )
     run_clicked = st.button(
-        "Run Analysis",
+        "Confirm Dataset",
         type="primary",
         disabled=not report.is_valid,
         use_container_width=True,
@@ -429,20 +502,18 @@ def main() -> None:
                 "Review the mappings and try again."
             )
         else:
-            st.session_state["clean_df"] = result.dataframe
-            st.session_state["column_mapping"] = mapping.as_dict()
-            st.session_state["ingestion_statistics"] = {
-                "input_rows": result.statistics.input_rows,
-                "output_rows": result.statistics.output_rows,
-                "empty_reviews_removed": result.statistics.empty_reviews_removed,
-                "duplicate_reviews_removed": result.statistics.duplicate_reviews_removed,
-            }
-            st.session_state["analysis_complete"] = False
-            st.session_state["results_df"] = None
-            st.session_state["sentiment_complete"] = False
-            st.session_state["selected_sentiment_model"] = None
-            st.session_state["sentiment_runtime_seconds"] = None
-            st.session_state["sentiment_source_signature"] = None
+            set_canonical_dataset(
+                st.session_state,
+                result.dataframe,
+                column_mapping=mapping.as_dict(),
+                ingestion_statistics={
+                    "input_rows": result.statistics.input_rows,
+                    "output_rows": result.statistics.output_rows,
+                    "empty_reviews_removed": result.statistics.empty_reviews_removed,
+                    "duplicate_reviews_removed": result.statistics.duplicate_reviews_removed,
+                },
+                validation_report=report,
+            )
             logger.info(
                 "Canonicalization completed input_rows=%s output_rows=%s "
                 "empty_removed=%s duplicates_removed=%s",
@@ -455,6 +526,7 @@ def main() -> None:
                 st.warning(warning.message)
 
     render_canonical_result(mapping)
+    render_full_analysis_controls(mapping)
 
 
 if __name__ == "__main__":

@@ -130,15 +130,31 @@ def run_insight_stage(
     )
 
 
-def run_pipeline(dataframe: pd.DataFrame) -> pd.DataFrame:
-    """Run the future complete analysis pipeline.
+def run_pipeline(
+    dataframe: pd.DataFrame,
+    *,
+    sentiment_model: SentimentModelName | str,
+    topic_config: TopicModelConfig | None = None,
+    analyzer: SentimentAnalyzer | None = None,
+    stability_runs: int = 3,
+) -> pd.DataFrame:
+    """Run the complete saved-analysis pipeline on a canonical DataFrame.
 
-    Ingestion, EDA, sentiment analysis, topic modeling, aspect analysis, and
-    business-insight generation are implemented. Final dashboard integration
-    and deployment remain assigned to later phases.
+    The Streamlit dashboard uses a richer orchestration wrapper so it can persist
+    intermediate outputs and timings, while this function exposes the final enriched
+    review table for programmatic callers.
     """
-    raise NotImplementedError(
-        "The end-to-end pipeline is not complete yet. Sentiment, topic modeling, "
-        "aspect analysis, and business insights are available through stage "
-        "functions; final dashboard integration remains pending."
+    sentiment = run_sentiment_stage(dataframe, sentiment_model, analyzer=analyzer)
+    topics = run_topic_stage(
+        sentiment.dataframe,
+        config=topic_config or TopicModelConfig(),
+        stability_runs=stability_runs,
     )
+    aspects = run_aspect_stage(topics.dataframe)
+    insights = run_insight_stage(
+        aspects.dataframe,
+        topic_summary=topics.summary,
+        aspect_summary=aspects.summary,
+        aspect_mentions=aspects.mentions,
+    )
+    return insights.dataframe

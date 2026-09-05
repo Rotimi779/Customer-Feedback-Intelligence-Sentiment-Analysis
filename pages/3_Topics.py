@@ -9,6 +9,17 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from src.dashboard.components import (
+    render_empty_filtered_state,
+    render_filter_status,
+    render_global_filters,
+    render_prerequisite,
+)
+from src.dashboard.errors import check_page_prerequisites
+from src.dashboard.filters import apply_dashboard_filters
+from src.dashboard.formatting import SENTIMENT_COLORS
+from src.dashboard.state import initialize_session_state, invalidate_after_topics
+
 from src.pipeline import run_topic_stage
 from src.topics.utils import TopicModelConfig, TopicModelError
 from src.topics.visualization import (
@@ -82,38 +93,30 @@ def _render_summary(summary: pd.DataFrame, results_df: pd.DataFrame) -> None:
     st.dataframe(display, use_container_width=True, hide_index=True)
 
 
-def _filter_topic_reviews(results_df: pd.DataFrame) -> pd.DataFrame:
-    filtered = results_df.copy()
-    with st.sidebar:
-        st.header("Topic filters")
-        topics = (
-            filtered[["topic_id", "topic_label"]]
-            .drop_duplicates()
-            .sort_values("topic_id")
-        )
-        topic_options = ["All topics", *topics["topic_label"].astype(str).tolist()]
-        selected_topic = st.selectbox("Topic", topic_options)
-        if selected_topic != "All topics":
-            filtered = filtered.loc[filtered["topic_label"].eq(selected_topic)]
-
-        if "sentiment_label" in filtered.columns:
-            labels = sorted(filtered["sentiment_label"].dropna().astype(str).unique())
-            selected_sentiment = st.multiselect("Sentiment", labels, default=labels)
-            filtered = (
-                filtered.loc[filtered["sentiment_label"].isin(selected_sentiment)]
-                if selected_sentiment
-                else filtered.iloc[0:0]
-            )
-
-        keyword = st.text_input("Review keyword", placeholder="Search review text")
-        if keyword.strip():
-            filtered = filtered.loc[
-                filtered["review_text"].astype(str).str.contains(
-                    keyword.strip(), case=False, regex=False, na=False
-                )
-            ]
-
-    return filtered.copy()
+def _filtered_topic_summary(base_summary: pd.DataFrame, results_df: pd.DataFrame) -> pd.DataFrame:
+    """Reaggregate saved topic assignments for the active global-filter subset."""
+    if results_df.empty:
+        return base_summary.iloc[0:0].copy()
+    total = len(results_df)
+    rows: list[dict[str, object]] = []
+    info = base_summary.set_index("topic_id", drop=False) if not base_summary.empty else pd.DataFrame()
+    for topic_id, subset in results_df.groupby("topic_id", observed=True, sort=True):
+        topic_id = int(topic_id)
+        label = str(subset["topic_label"].iloc[0])
+        original = info.loc[topic_id] if not info.empty and topic_id in info.index else None
+        sentiment = subset["sentiment_label"].astype(str) if "sentiment_label" in subset.columns else pd.Series(dtype=str)
+        score_map = {"Negative": -1.0, "Neutral": 0.0, "Positive": 1.0}
+        numeric = sentiment.map(score_map).dropna()
+        rows.append({
+            "topic_id": topic_id,
+            "topic_label": label,
+            "top_keywords": "" if original is None else str(original.get("top_keywords", "")),
+            "review_count": int(len(subset)),
+            "percentage": float(len(subset) / total) if total else 0.0,
+            "average_sentiment": float(numeric.mean()) if not numeric.empty else None,
+            "dominant_sentiment": str(sentiment.value_counts().idxmax()) if not sentiment.empty else None,
+        })
+    return pd.DataFrame(rows).sort_values(["review_count", "topic_id"], ascending=[False, True]).reset_index(drop=True)
 
 
 def _render_topic_explorer(
@@ -147,6 +150,9 @@ def _render_topic_explorer(
             sentiment_counts,
             x="sentiment",
             y="reviews",
+            color="sentiment",
+            color_discrete_map=SENTIMENT_COLORS,
+            category_orders={"sentiment": ["Positive", "Neutral", "Negative"]},
             title=f"Sentiment within {selected_label}",
             labels={"sentiment": "Sentiment", "reviews": "Reviews"},
         )
@@ -177,17 +183,17 @@ def _render_topic_explorer(
 def main() -> None:
     """Render dataset-specific NMF topic modeling and exploration."""
     st.set_page_config(page_title=APP_TITLE, page_icon="🧩", layout="wide")
+    initialize_session_state(st.session_state)
     st.title(APP_TITLE)
     st.caption(
         "Discover dataset-specific themes with TF-IDF + Non-negative Matrix "
         "Factorization (NMF). The MVP intentionally uses one topic-modeling method."
     )
 
-    results_df = st.session_state.get("results_df")
-    if not isinstance(results_df, pd.DataFrame) or results_df.empty:
-        st.warning("Run sentiment analysis before topic modeling.")
-        st.page_link("pages/2_Sentiment.py", label="Go to Sentiment", icon="🙂")
+    status = check_page_prerequisites(st.session_state, "topics")
+    if not render_prerequisite(status):
         return
+    results_df = st.session_state.get("results_df")
 
     required = {"sentiment_label", "sentiment_score"}
     if not required.issubset(results_df.columns):
@@ -237,16 +243,8 @@ def main() -> None:
             st.session_state["topic_model_runtime"] = runtime
             st.session_state["topic_representatives"] = result.representative_review_ids
             # Topic changes invalidate downstream aspect/insight outputs.
-            st.session_state["aspect_summary"] = None
-            st.session_state["aspect_mentions"] = None
-            st.session_state["aspect_metrics"] = None
-            st.session_state["aspect_complete"] = False
-            st.session_state["aspect_source_signature"] = None
-            st.session_state["aspect_runtime_seconds"] = None
-            st.session_state["insights"] = None
-            st.session_state["insight_complete"] = False
-            st.session_state["insight_source_signature"] = None
-            st.session_state["insight_runtime_seconds"] = None
+            invalidate_after_topics(st.session_state)
+
 
     summary = st.session_state.get("topic_summary")
     metrics = st.session_state.get("topic_metrics")
@@ -258,35 +256,38 @@ def main() -> None:
         and {"topic_id", "topic_label"}.issubset(st.session_state["results_df"].columns)
     ):
         current_results = st.session_state["results_df"]
+        filters = render_global_filters(
+            current_results, st.session_state, key_prefix="topics_global"
+        )
+        filtered = apply_dashboard_filters(current_results, filters)
+        render_filter_status(len(current_results), len(filtered), filters)
+
         st.divider()
         runtime = st.session_state.get("topic_model_runtime")
         if runtime is not None:
             st.caption(f"Last topic-modeling runtime: {float(runtime):.3f} seconds.")
-        _render_summary(summary, current_results)
+        if filtered.empty:
+            render_empty_filtered_state()
+            return
+
+        display_summary = _filtered_topic_summary(summary, filtered)
+        _render_summary(display_summary, filtered)
         _render_quality(metrics)
         _render_topic_explorer(
-            summary,
-            current_results,
+            display_summary,
+            filtered,
             st.session_state.get("topic_representatives"),
         )
 
         st.subheader("Filtered topic assignments")
-        filtered = _filter_topic_reviews(current_results)
-        if filtered.empty:
-            st.info("No reviews match the active topic filters.")
-        else:
-            display_columns = [
-                "review_id",
-                "review_text",
-                "sentiment_label",
-                "topic_id",
-                "topic_label",
-            ]
-            st.dataframe(
-                filtered[[column for column in display_columns if column in filtered.columns]].head(200),
-                use_container_width=True,
-                hide_index=True,
-            )
+        display_columns = [
+            "review_id", "review_text", "sentiment_label", "topic_id", "topic_label"
+        ]
+        st.dataframe(
+            filtered[[column for column in display_columns if column in filtered.columns]].head(200),
+            use_container_width=True,
+            hide_index=True,
+        )
 
 
 if __name__ == "__main__":

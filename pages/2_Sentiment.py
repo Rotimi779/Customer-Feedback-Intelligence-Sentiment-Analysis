@@ -9,6 +9,17 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from src.dashboard.formatting import SENTIMENT_COLORS
+from src.dashboard.components import (
+    render_empty_filtered_state,
+    render_filter_status,
+    render_global_filters,
+    render_prerequisite,
+)
+from src.dashboard.errors import check_page_prerequisites
+from src.dashboard.filters import apply_dashboard_filters
+from src.dashboard.state import initialize_session_state, invalidate_after_sentiment
+
 from src.sentiment import (
     SentimentAnalyzer,
     SentimentModelName,
@@ -27,11 +38,6 @@ def _load_analyzer(model_name: str) -> SentimentAnalyzer:
     return SentimentAnalyzer.load(SentimentModelName(model_name))
 
 
-SENTIMENT_COLORS = {
-    "Positive": "#2E8B57",
-    "Neutral": "#7A7A7A",
-    "Negative": "#D9534F",
-}
 
 
 def _render_model_comparison() -> None:
@@ -71,50 +77,26 @@ def _render_model_comparison() -> None:
 
 
 def _filter_results(dataframe: pd.DataFrame) -> pd.DataFrame:
-    """Apply sentiment-page filters without mutating stored results."""
-    filtered = dataframe.copy()
+    """Apply shared dashboard filters plus the sentiment-specific confidence threshold."""
+    filters = render_global_filters(
+        dataframe,
+        st.session_state,
+        key_prefix="sentiment_global",
+    )
+    filtered = apply_dashboard_filters(dataframe, filters)
     with st.sidebar:
-        st.header("Sentiment filters")
-        labels = sorted(filtered["sentiment_label"].dropna().astype(str).unique())
-        selected_labels = st.multiselect(
-            "Sentiment",
-            options=labels,
-            default=labels,
-        )
-        if selected_labels:
-            filtered = filtered.loc[filtered["sentiment_label"].isin(selected_labels)]
-        else:
-            filtered = filtered.iloc[0:0]
-
+        st.subheader("Sentiment options")
         minimum_confidence = st.slider(
             "Minimum confidence",
             min_value=0.0,
             max_value=1.0,
             value=0.0,
             step=0.05,
+            key="sentiment_min_confidence",
         )
-        filtered = filtered.loc[filtered["sentiment_score"] >= minimum_confidence]
-
-        if "product" in filtered.columns:
-            products = sorted(filtered["product"].dropna().astype(str).unique())
-            selected_products = st.multiselect("Products", options=products)
-            if selected_products:
-                filtered = filtered.loc[
-                    filtered["product"].astype(str).isin(selected_products)
-                ]
-
-        keyword = st.text_input("Keyword search", placeholder="Search review text")
-        if keyword.strip():
-            filtered = filtered.loc[
-                filtered["review_text"].astype(str).str.contains(
-                    keyword.strip(),
-                    case=False,
-                    regex=False,
-                    na=False,
-                )
-            ]
-
-    return filtered.copy()
+    filtered = filtered.loc[filtered["sentiment_score"] >= minimum_confidence].copy()
+    render_filter_status(len(dataframe), len(filtered), filters)
+    return filtered
 
 
 def _render_distribution(dataframe: pd.DataFrame) -> None:
@@ -204,7 +186,7 @@ def _render_representative_reviews(dataframe: pd.DataFrame) -> None:
 def _render_results(results_df: pd.DataFrame, model_name: SentimentModelName) -> None:
     filtered = _filter_results(results_df)
     if filtered.empty:
-        st.warning("No sentiment results match the active filters.")
+        render_empty_filtered_state()
         return
 
     metric_columns = st.columns(4)
@@ -240,17 +222,19 @@ def _render_results(results_df: pd.DataFrame, model_name: SentimentModelName) ->
 def main() -> None:
     """Render the complete Phase 4 sentiment page."""
     st.set_page_config(page_title=APP_TITLE, page_icon="🙂", layout="wide")
+    initialize_session_state(st.session_state)
     st.title(APP_TITLE)
     st.caption(
         "Compare the classical baseline with DistilBERT, then run the selected "
         "local model against the prepared canonical dataset."
     )
 
-    clean_df = st.session_state.get("clean_df")
-    if clean_df is None or not isinstance(clean_df, pd.DataFrame):
-        st.warning("Prepare a dataset on the Upload & Setup page first.")
-        st.page_link("app.py", label="Go to Upload & Setup", icon="📤")
+    status = check_page_prerequisites(st.session_state, "sentiment")
+    if not render_prerequisite(status):
         return
+    clean_df = st.session_state.get("canonical_df")
+    if not isinstance(clean_df, pd.DataFrame):
+        clean_df = st.session_state.get("clean_df")
     if clean_df.empty:
         st.warning("The prepared dataset has no usable reviews.")
         return
@@ -334,24 +318,9 @@ def main() -> None:
             st.session_state["sentiment_source_signature"] = st.session_state.get(
                 "source_signature"
             )
-            # A new sentiment result invalidates all downstream topic outputs.
-            st.session_state["topic_complete"] = False
-            st.session_state["topic_summary"] = None
-            st.session_state["topic_metrics"] = None
-            st.session_state["topic_source_signature"] = None
-            st.session_state["topic_config"] = None
-            st.session_state["topic_model_runtime"] = None
-            st.session_state["topic_representatives"] = None
-            st.session_state["aspect_summary"] = None
-            st.session_state["aspect_mentions"] = None
-            st.session_state["aspect_metrics"] = None
-            st.session_state["aspect_complete"] = False
-            st.session_state["aspect_source_signature"] = None
-            st.session_state["aspect_runtime_seconds"] = None
-            st.session_state["insights"] = None
-            st.session_state["insight_complete"] = False
-            st.session_state["insight_source_signature"] = None
-            st.session_state["insight_runtime_seconds"] = None
+            # A new sentiment result invalidates all downstream saved outputs.
+            invalidate_after_sentiment(st.session_state)
+
 
     results_df = st.session_state.get("results_df")
     stored_model = st.session_state.get("selected_sentiment_model")

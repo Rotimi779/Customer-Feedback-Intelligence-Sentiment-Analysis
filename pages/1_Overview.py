@@ -7,6 +7,16 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
+from src.dashboard.components import (
+    render_empty_filtered_state,
+    render_filter_status,
+    render_global_filters,
+    render_prerequisite,
+)
+from src.dashboard.errors import check_page_prerequisites
+from src.dashboard.filters import apply_dashboard_filters
+from src.dashboard.state import initialize_session_state
+
 from src.eda import (
     DatasetFilters,
     apply_filters,
@@ -297,30 +307,34 @@ def _render_charts(bundle: dict[str, Any]) -> None:
 def main() -> None:
     """Render the complete Phase 3 EDA Overview page."""
     st.set_page_config(page_title=APP_TITLE, page_icon="📊", layout="wide")
+    initialize_session_state(st.session_state)
     st.title(APP_TITLE)
     st.caption(
         "Understand dataset quality and structure before any NLP model inference."
     )
 
-    clean_df = st.session_state.get("clean_df")
-    if clean_df is None or not isinstance(clean_df, pd.DataFrame):
-        st.warning("Prepare a dataset on the Upload & Setup page first.")
-        st.page_link("app.py", label="Go to Upload & Setup", icon="📤")
+    status = check_page_prerequisites(st.session_state, "overview")
+    if not render_prerequisite(status):
         return
+    clean_df = st.session_state.get("canonical_df")
+    if not isinstance(clean_df, pd.DataFrame):
+        clean_df = st.session_state.get("clean_df")
     if clean_df.empty:
         st.warning("The prepared dataset has no usable reviews.")
         return
 
-    filters = _render_sidebar_filters(clean_df)
-    filtered_df = _cached_apply_filters(clean_df, filters)
+    filters = render_global_filters(
+        clean_df, st.session_state, key_prefix="overview_global"
+    )
+    filtered_df = apply_dashboard_filters(clean_df, filters)
+    render_filter_status(len(clean_df), len(filtered_df), filters)
 
     if filtered_df.empty:
-        st.warning("No reviews match the active filters. Clear or widen the filters.")
+        render_empty_filtered_state()
         return
 
     bundle = _cached_eda_bundle(filtered_df)
     _render_kpis(bundle["summary"], total_unfiltered=len(clean_df))
-    st.caption(f"Showing {len(filtered_df):,} of {len(clean_df):,} prepared reviews.")
 
     st.divider()
     _render_source_quality(
